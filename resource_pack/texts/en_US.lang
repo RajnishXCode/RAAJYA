@@ -1,0 +1,6 @@
+pack.name=RAAJYA
+pack.description=Commander Stone, Royal Soldier Spawner and Royal Guard recruitment.
+item.raajya:commander_stone.name=Commander Stone
+tile.raajya:royal_soldier_spawner.name=Royal Soldier Spawner
+entity.raajya:royal_guard.name=Royal Guard
+item.spawn_egg.entity.raajya:royal_guard.name=Spawn Royal Guard

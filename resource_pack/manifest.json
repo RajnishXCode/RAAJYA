@@ -1,0 +1,29 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "RAAJYA Resource Pack",
+    "description": "RAAJYA — royal/fantasy textures, geometry, render controllers and localization. (RP)",
+    "uuid": "36023ad2-573b-4d76-8335-a23c67f429c4",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 26, 60]
+  },
+  "modules": [
+    {
+      "description": "RAAJYA resources (textures, models, client entity, render controllers).",
+      "type": "resources",
+      "uuid": "1b198e33-2e0d-4999-924a-7bebee9630dc",
+      "version": [1, 0, 0]
+    }
+  ],
+  "dependencies": [
+    {
+      "uuid": "09c3e206-3bd0-45f5-a343-c5010d6f737a",
+      "version": [1, 0, 0]
+    }
+  ],
+  "metadata": {
+    "authors": ["RAAJYA contributors"],
+    "license": "MIT",
+    "product_type": "addon"
+  }
+}

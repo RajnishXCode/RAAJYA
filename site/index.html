@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAAJYA — Minecraft Bedrock Add-on</title>
+<meta name="description" content="Download RAAJYA, a Minecraft Bedrock add-on with a Commander Stone, a reusable Royal Soldier Spawner, and Royal Guard recruitment.">
+<style>
+  :root {
+    --navy: #141f47;
+    --navy-2: #1e3a8a;
+    --blue: #254e9e;
+    --gold: #d4af37;
+    --gold-light: #f7e084;
+    --ink: #0e1330;
+    --paper: #f6f4ec;
+    --muted: #5b6178;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(160deg, #0b1230 0%, var(--navy) 45%, var(--navy-2) 100%);
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 72px; }
+  header { text-align: center; color: #fff; padding: 24px 0 8px; }
+  .crest {
+    width: 92px; height: 92px; margin: 0 auto 14px;
+    border-radius: 20px;
+    background: radial-gradient(circle at 50% 30%, var(--gold-light), var(--gold) 55%, #9a741e 100%);
+    box-shadow: 0 8px 30px rgba(0,0,0,.45), inset 0 0 0 4px rgba(255,255,255,.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 52px; line-height: 1;
+  }
+  h1 {
+    margin: 0; font-size: clamp(2.2rem, 7vw, 3.4rem);
+    letter-spacing: .18em; font-weight: 800;
+    background: linear-gradient(180deg, #fff, var(--gold-light));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .tagline { color: #cdd6f5; margin: 6px 0 0; font-size: 1rem; letter-spacing: .04em; }
+  .card {
+    background: var(--paper);
+    border-radius: 18px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.4);
+    padding: 28px;
+    margin-top: 26px;
+    border: 1px solid rgba(212,175,55,.35);
+  }
+  .badges { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 22px; }
+  .badge {
+    background: #ece8d8; border: 1px solid #d8d0b0; border-radius: 999px;
+    padding: 6px 14px; font-size: .82rem; font-weight: 600; color: #3a3f5a;
+  }
+  .badge strong { color: var(--navy-2); }
+  .download {
+    display: block; text-align: center; text-decoration: none;
+    background: linear-gradient(180deg, var(--blue), var(--navy-2));
+    color: #fff; font-size: 1.25rem; font-weight: 700;
+    padding: 16px 20px; border-radius: 12px;
+    border: 2px solid var(--gold);
+    box-shadow: 0 6px 0 rgba(20,31,71,.35);
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  .download:hover { transform: translateY(-2px); box-shadow: 0 8px 0 rgba(20,31,71,.35); }
+  .download:active { transform: translateY(2px); box-shadow: 0 3px 0 rgba(20,31,71,.35); }
+  .download small { display: block; font-weight: 400; font-size: .8rem; opacity: .85; margin-top: 4px; }
+  .alt { text-align: center; margin-top: 14px; font-size: .9rem; color: var(--muted); }
+  .alt a { color: var(--navy-2); font-weight: 600; }
+  h2 { font-size: 1.15rem; margin: 30px 0 10px; color: var(--navy-2); border-bottom: 2px solid #e6dfc4; padding-bottom: 6px; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 5px 0; }
+  .checksum {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .78rem; background: #ece8d8; border: 1px solid #d8d0b0;
+    border-radius: 8px; padding: 10px 12px; word-break: break-all; color: #2a2f45;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 26px; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } .card { padding: 20px; } }
+  code { background: #ece8d8; border-radius: 4px; padding: 1px 5px; font-size: .88em; }
+  footer { text-align: center; color: #aab4dd; font-size: .82rem; margin-top: 30px; }
+  footer a { color: var(--gold-light); }
+  .note { font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="crest" aria-hidden="true">&#9819;</div>
+      <h1>RAAJYA</h1>
+      <p class="tagline">Command the crown. Recruit your Royal Guard.</p>
+    </header>
+
+    <main class="card">
+      <div class="badges">
+        <span class="badge">Version <strong>{{VERSION}}</strong></span>
+        <span class="badge">Script API <strong>@minecraft/server 2.11.0</strong></span>
+        <span class="badge">Min engine <strong>1.26.60</strong></span>
+        <span class="badge">Built <strong>{{BUILD_DATE}}</strong></span>
+        <span class="badge">Commit <strong>{{COMMIT}}</strong></span>
+      </div>
+
+      <a class="download" href="RAAJYA.mcaddon" download>
+        &#11015; Download RAAJYA.mcaddon
+        <small>Latest successful build &middot; works on Windows, macOS, Android &amp; iOS</small>
+      </a>
+      <p class="alt">
+        Pinned build: <a href="{{VERSIONED_FILE}}" download>{{VERSIONED_FILE}}</a>
+        &nbsp;&middot;&nbsp; <a href="SHA256SUMS.txt">SHA256SUMS.txt</a>
+      </p>
+      <p class="alt">
+        Individual packs (import these directly on any device that can't open the container):
+        <a href="RAAJYA_BP.mcpack" download>RAAJYA_BP.mcpack</a>
+        &nbsp;&middot;&nbsp;
+        <a href="RAAJYA_RP.mcpack" download>RAAJYA_RP.mcpack</a>
+      </p>
+
+      <h2>SHA-256 checksum</h2>
+      <div class="checksum">{{CHECKSUM}}</div>
+      <p class="note">Verify the download with <code>sha256sum RAAJYA.mcaddon</code> (or <code>shasum -a 256</code> on macOS) to confirm integrity.</p>
+
+      <h2>Installation (Minecraft Bedrock)</h2>
+      <ol>
+        <li>Download <code>RAAJYA.mcaddon</code> on the device where Minecraft Bedrock is installed.</li>
+        <li>Open the file. Minecraft will launch and import both packs (you may need to choose <em>Open with Minecraft</em> on Android/iOS, or double-click on Windows; on macOS, open it with Minecraft).</li>
+        <li>Create a new world (or edit an existing one) and activate <strong>both</strong> the RAAJYA Behavior Pack and the RAAJYA Resource Pack. The packs are linked, so activating one offers the other.</li>
+        <li>No experiments/experimental toggles are required on the target engine (custom items, blocks, entities and the stable Script API are all out of preview).</li>
+        <li>Load the world. In Creative, find the <strong>Commander Stone</strong> and the <strong>Royal Soldier Spawner</strong>.</li>
+      </ol>
+
+      <h2>Implemented features</h2>
+      <div class="grid">
+        <ul>
+          <li><strong>Commander Stone</strong> &mdash; non-stackable royal token with a unique, persistent Commander ID (e.g. <code>RAAJYA-7F31A9C2</code>).</li>
+          <li><strong>Royal Soldier Spawner</strong> &mdash; reusable, placeable custom block; crafted from 9 Diamond Blocks in a full 3&times;3.</li>
+          <li><strong>Royal Guard</strong> &mdash; a custom humanoid soldier entity with its own model, geometry, texture and render controller.</li>
+        </ul>
+        <ul>
+          <li><strong>Recruitment</strong> &mdash; interact with a spawner holding a Commander Stone + 5 Emerald Blocks to recruit exactly one guard.</li>
+          <li><strong>Ownership</strong> &mdash; every guard stores the Commander ID of the stone used; survives world save/reload and works for multiple players.</li>
+          <li><strong>Safety</strong> &mdash; resource checks, exact consumption (never the stone or spawner), safe-spawn search, rollback on error, interaction cooldown.</li>
+        </ul>
+      </div>
+
+      <h2>Quick start (in-game)</h2>
+      <ol>
+        <li>Give yourself a <strong>Commander Stone</strong> (Creative inventory) &mdash; interacting with a spawner assigns its persistent ID.</li>
+        <li>Get 9 Diamond Blocks and craft a <strong>Royal Soldier Spawner</strong> (all 9 crafting slots).</li>
+        <li>Place the spawner and keep <strong>5 Emerald Blocks</strong> in your inventory.</li>
+        <li>Right-click / interact with the spawner to recruit a Royal Guard. Repeat as many times as you like.</li>
+      </ol>
+      <p class="note">Advanced command authorisation, combat/patrol AI and a Barracks are intentionally out of scope for this initial phase.</p>
+    </main>
+
+    <footer>
+      <p>RAAJYA &middot; v{{VERSION}} &middot; MIT licensed &middot; generated by GitHub Actions &middot; no login required to download.</p>
+    </footer>
+  </div>
+</body>
+</html>

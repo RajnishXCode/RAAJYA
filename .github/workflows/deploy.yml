@@ -1,0 +1,82 @@
+name: Build & Deploy RAAJYA to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Required for actions/deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one concurrent deployment; skip stale queued runs.
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check TypeScript
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Validate packs
+        run: npm run validate
+
+      - name: Build, validate and package the add-on
+        run: npm run build
+        # Produces dist/RAAJYA.mcaddon, dist/RAAJYA-v<VERSION>.mcaddon,
+        # dist/*.mcpack and dist/SHA256SUMS.txt
+
+      - name: Prepare the download site
+        run: node scripts/prepare-site.mjs
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          BUILD_DATE: ${{ github.event.head_commit.timestamp }}
+
+      - name: Upload the Pages artifact (site + downloadable .mcaddon files)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/_site
+
+      - name: Upload the add-on as a workflow artifact (convenience)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RAAJYA-addon
+          path: |
+            dist/RAAJYA.mcaddon
+            dist/RAAJYA-v*.mcaddon
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,24 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "raajya:royal_guard",
+      "materials": {
+        "default": "entity"
+      },
+      "textures": {
+        "default": "textures/entity/royal_guard"
+      },
+      "geometry": {
+        "default": "geometry.raajya.royal_guard"
+      },
+      "render_controllers": [
+        "controller.render.raajya.royal_guard"
+      ],
+      "spawn_egg": {
+        "base_color": "#1E3A8A",
+        "overlay_color": "#D4AF37"
+      }
+    }
+  }
+}

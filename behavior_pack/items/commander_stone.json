@@ -1,0 +1,24 @@
+{
+  "format_version": "1.21.80",
+  "minecraft:item": {
+    "description": {
+      "identifier": "raajya:commander_stone",
+      "menu_category": {
+        "category": "items",
+        "group": "itemGroup.name.misc",
+        "is_hidden_in_commands": false
+      }
+    },
+    "components": {
+      "minecraft:max_stack_size": 1,
+      "minecraft:icon": {
+        "textures": {
+          "default": "raajya:commander_stone"
+        }
+      },
+      "minecraft:display_name": {
+        "value": "Commander Stone"
+      }
+    }
+  }
+}

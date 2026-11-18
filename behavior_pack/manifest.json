@@ -1,0 +1,41 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "RAAJYA Behavior Pack",
+    "description": "RAAJYA — Commander Stone, Royal Soldier Spawner and Royal Guard recruitment. (BP)",
+    "uuid": "09c3e206-3bd0-45f5-a343-c5010d6f737a",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 26, 60]
+  },
+  "modules": [
+    {
+      "description": "RAAJYA behavior/data definitions (items, blocks, entities, recipes).",
+      "type": "data",
+      "uuid": "8d174c6b-4a5d-4668-b484-9900bbdede73",
+      "version": [1, 0, 0]
+    },
+    {
+      "description": "RAAJYA Script API logic (recruitment + ownership).",
+      "type": "script",
+      "language": "javascript",
+      "uuid": "9fa22730-1ba0-4e4c-80ac-1427b969dbd5",
+      "entry": "scripts/main.js",
+      "version": [1, 0, 0]
+    }
+  ],
+  "dependencies": [
+    {
+      "uuid": "36023ad2-573b-4d76-8335-a23c67f429c4",
+      "version": [1, 0, 0]
+    },
+    {
+      "module_name": "@minecraft/server",
+      "version": "2.11.0"
+    }
+  ],
+  "metadata": {
+    "authors": ["RAAJYA contributors"],
+    "license": "MIT",
+    "product_type": "addon"
+  }
+}

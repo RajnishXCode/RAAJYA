@@ -1,0 +1,39 @@
+{
+  "format_version": "1.26.0",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "raajya:royal_guard",
+      "is_spawnable": true,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:health": {
+        "value": 30,
+        "max": 30
+      },
+      "minecraft:collision_box": {
+        "width": 0.6,
+        "height": 1.8
+      },
+      "minecraft:physics": {},
+      "minecraft:movement": {
+        "value": 0.25
+      },
+      "minecraft:movement.basic": {
+        "max_turn": 30.0
+      },
+      "minecraft:type_family": {
+        "family": ["royal_guard", "mob"]
+      },
+      "minecraft:scale": {
+        "value": 1.0
+      },
+      "minecraft:pushable": {
+        "is_pushable": true,
+        "is_pushable_by_piston": true
+      },
+      "minecraft:nameable": {}
+    }
+  }
+}

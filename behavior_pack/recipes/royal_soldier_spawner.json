@@ -1,0 +1,28 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "raajya:royal_soldier_spawner"
+    },
+    "tags": ["crafting_table"],
+    "pattern": [
+      "DDD",
+      "DDD",
+      "DDD"
+    ],
+    "key": {
+      "D": {
+        "item": "minecraft:diamond_block"
+      }
+    },
+    "unlock": [
+      {
+        "item": "minecraft:diamond_block"
+      }
+    ],
+    "result": {
+      "item": "raajya:royal_soldier_spawner",
+      "count": 1
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "format_version": "1.21.80",
+  "minecraft:block": {
+    "description": {
+      "identifier": "raajya:royal_soldier_spawner",
+      "menu_category": {
+        "category": "construction",
+        "group": "itemGroup.name.misc"
+      }
+    },
+    "components": {
+      "minecraft:geometry": "minecraft:geometry.full_block",
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "royal_soldier_spawner",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:collision_box": true,
+      "minecraft:selection_box": true,
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 3.0
+      },
+      "minecraft:loot": "loot_tables/blocks/royal_soldier_spawner.json",
+      "raajya:spawner_interact": {}
+    }
+  }
+}
