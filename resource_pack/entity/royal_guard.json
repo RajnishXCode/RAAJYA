@@ -4,7 +4,7 @@
     "description": {
       "identifier": "raajya:royal_guard",
       "materials": {
-        "default": "entity"
+        "default": "entity_alphatest"
       },
       "textures": {
         "default": "textures/entity/royal_guard"
@@ -12,9 +12,35 @@
       "geometry": {
         "default": "geometry.raajya.royal_guard"
       },
+      "animations": {
+        "look_at_target_default": "animation.humanoid.look_at_target.default",
+        "look_at_target_controller": "controller.animation.humanoid.look_at_target",
+        "move": "animation.humanoid.move",
+        "move_controller": "controller.animation.humanoid.move",
+        "holding": "animation.humanoid.holding",
+        "holding_controller": "controller.animation.humanoid.holding",
+        "attack.rotations": "animation.humanoid.attack.rotations",
+        "attack_controller": "controller.animation.humanoid.attack",
+        "bob": "animation.humanoid.bob",
+        "bob_controller": "controller.animation.humanoid.bob"
+      },
+      "scripts": {
+        "pre_animation": [
+          "v.gliding_speed_value = 1.0;",
+          "v.tcos0 = Math.cos(query.modified_distance_moved * 38.17) * query.modified_move_speed / v.gliding_speed_value * 57.3;"
+        ],
+        "animate": [
+          "look_at_target_controller",
+          "move_controller",
+          "holding_controller",
+          "attack_controller",
+          "bob_controller"
+        ]
+      },
       "render_controllers": [
         "controller.render.raajya.royal_guard"
       ],
+      "enable_attachables": true,
       "spawn_egg": {
         "base_color": "#1E3A8A",
         "overlay_color": "#D4AF37"

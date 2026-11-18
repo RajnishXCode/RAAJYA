@@ -1,5 +1,5 @@
 {
-  "format_version": "1.26.0",
+  "format_version": "1.26.20",
   "minecraft:entity": {
     "description": {
       "identifier": "raajya:royal_guard",
@@ -9,31 +9,235 @@
     },
     "components": {
       "minecraft:health": {
-        "value": 30,
-        "max": 30
+        "value": 40,
+        "max": 40
       },
       "minecraft:collision_box": {
         "width": 0.6,
-        "height": 1.8
+        "height": 1.9
       },
       "minecraft:physics": {},
       "minecraft:movement": {
-        "value": 0.25
+        "value": 0.3
       },
-      "minecraft:movement.basic": {
-        "max_turn": 30.0
+      "minecraft:movement.basic": {},
+      "minecraft:jump.static": {},
+      "minecraft:can_climb": {},
+      "minecraft:navigation.walk": {
+        "can_path_over_water": true,
+        "avoid_damage_blocks": true,
+        "using_door_annotation": true
+      },
+      "minecraft:breathable": {
+        "total_supply": 15,
+        "suffocate_time": 0
       },
       "minecraft:type_family": {
         "family": ["royal_guard", "mob"]
       },
-      "minecraft:scale": {
-        "value": 1.0
+      "minecraft:attack": {
+        "damage": 10
       },
-      "minecraft:pushable": {
-        "is_pushable": true,
-        "is_pushable_by_piston": true
+      "minecraft:knockback_resistance": {
+        "value": 0.6
       },
-      "minecraft:nameable": {}
+      "minecraft:follow_range": {
+        "value": 48
+      },
+      "minecraft:persistent": {},
+      "minecraft:nameable": {},
+      "minecraft:is_hidden_when_invisible": {},
+      "minecraft:pushable_by_entity": {},
+      "minecraft:pushable_by_block": {},
+      "minecraft:tameable": {
+        "probability": 0,
+        "tame_items": "minecraft:bedrock"
+      },
+      "minecraft:hurt_on_condition": {
+        "damage_conditions": [
+          {
+            "filters": {
+              "subject": "self",
+              "test": "in_lava",
+              "operator": "==",
+              "value": true
+            },
+            "cause": "lava",
+            "damage_per_tick": 4
+          }
+        ]
+      },
+      "minecraft:behavior.float": {
+        "priority": 0
+      },
+      "minecraft:behavior.hurt_by_target": {
+        "priority": 1,
+        "entity_types": {
+          "filters": {
+            "all_of": [
+              {
+                "test": "is_family",
+                "subject": "other",
+                "operator": "not",
+                "value": "player"
+              },
+              {
+                "test": "is_family",
+                "subject": "other",
+                "operator": "not",
+                "value": "royal_guard"
+              }
+            ]
+          }
+        }
+      },
+      "minecraft:behavior.melee_box_attack": {
+        "priority": 4,
+        "track_target": true
+      },
+      "minecraft:behavior.look_at_player": {
+        "priority": 7,
+        "look_distance": 8
+      },
+      "minecraft:behavior.random_look_around": {
+        "priority": 8
+      }
+    },
+    "component_groups": {
+      "raajya:moving_follow": {
+        "minecraft:behavior.follow_owner": {
+          "priority": 2,
+          "speed_multiplier": 1.0,
+          "start_distance": 8,
+          "stop_distance": 3,
+          "post_teleport_distance": -1,
+          "ignore_vibration": true
+        }
+      },
+      "raajya:combat_defend": {
+        "minecraft:behavior.owner_hurt_by_target": {
+          "priority": 1
+        },
+        "minecraft:behavior.owner_hurt_target": {
+          "priority": 2
+        },
+        "minecraft:behavior.nearest_attackable_target": {
+          "priority": 3,
+          "must_see": true,
+          "within_radius": 8,
+          "entity_types": [
+            {
+              "filters": {
+                "test": "is_family",
+                "subject": "other",
+                "value": "monster"
+              },
+              "max_dist": 12
+            }
+          ]
+        }
+      },
+      "raajya:combat_attack": {
+        "minecraft:behavior.nearest_attackable_target": {
+          "priority": 3,
+          "must_see": true,
+          "within_radius": 24,
+          "entity_types": [
+            {
+              "filters": {
+                "test": "is_family",
+                "subject": "other",
+                "value": "monster"
+              },
+              "max_dist": 32
+            }
+          ]
+        }
+      },
+      "raajya:move_patrol": {
+        "minecraft:behavior.random_stroll": {
+          "priority": 6,
+          "speed_multiplier": 0.8,
+          "xz_dist": 10,
+          "y_dist": 4
+        }
+      }
+    },
+    "events": {
+      "raajya:mode_stop": {
+        "remove": {
+          "component_groups": [
+            "raajya:moving_follow",
+            "raajya:combat_defend",
+            "raajya:combat_attack",
+            "raajya:move_patrol"
+          ]
+        }
+      },
+      "raajya:mode_here": {
+        "add": {
+          "component_groups": ["raajya:moving_follow"]
+        },
+        "remove": {
+          "component_groups": [
+            "raajya:combat_defend",
+            "raajya:combat_attack",
+            "raajya:move_patrol"
+          ]
+        }
+      },
+      "raajya:mode_follow": {
+        "add": {
+          "component_groups": ["raajya:moving_follow"]
+        },
+        "remove": {
+          "component_groups": [
+            "raajya:combat_defend",
+            "raajya:combat_attack",
+            "raajya:move_patrol"
+          ]
+        }
+      },
+      "raajya:mode_defend": {
+        "add": {
+          "component_groups": [
+            "raajya:moving_follow",
+            "raajya:combat_defend"
+          ]
+        },
+        "remove": {
+          "component_groups": [
+            "raajya:combat_attack",
+            "raajya:move_patrol"
+          ]
+        }
+      },
+      "raajya:mode_attack": {
+        "add": {
+          "component_groups": ["raajya:combat_attack"]
+        },
+        "remove": {
+          "component_groups": [
+            "raajya:moving_follow",
+            "raajya:combat_defend",
+            "raajya:move_patrol"
+          ]
+        }
+      },
+      "raajya:mode_patrol": {
+        "add": {
+          "component_groups": [
+            "raajya:move_patrol",
+            "raajya:combat_defend"
+          ]
+        },
+        "remove": {
+          "component_groups": [
+            "raajya:moving_follow",
+            "raajya:combat_attack"
+          ]
+        }
+      }
     }
   }
 }

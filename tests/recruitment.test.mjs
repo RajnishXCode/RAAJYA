@@ -16,6 +16,11 @@ import {
   isValidCommanderId,
   resolveCommanderStone,
   COMMANDER_ID_PREFIX,
+  recruitableCount,
+  progressToNextSoldier,
+  clampSpawnRadius,
+  parseCommandMessage,
+  isGuardMode,
 } from "../src/utils/recruitment-logic.mjs";
 
 const EMERALD = "minecraft:emerald_block";
@@ -226,4 +231,77 @@ test("recruitment simulation: insufficient emeralds -> no consumption, no spawn"
   const slots = inv([STONE, 1], [EMERALD, 4]);
   assert.equal(countItem(slots, EMERALD), 4);
   assert.equal(planConsume(slots, EMERALD, 5), null, "must refuse to consume when short");
+});
+
+// ---------------------------------------------------------------------------
+// Station economy (pure parts)
+// ---------------------------------------------------------------------------
+test("recruitableCount computes soldiers funded by stored emerald blocks", () => {
+  assert.equal(recruitableCount(0, 5), 0);
+  assert.equal(recruitableCount(4, 5), 0);
+  assert.equal(recruitableCount(5, 5), 1);
+  assert.equal(recruitableCount(12, 5), 2);
+  assert.equal(recruitableCount(500, 5), 100);
+  assert.equal(recruitableCount(-3, 5), 0, "negative storage funds nothing");
+  assert.equal(recruitableCount(10, 0), 0, "invalid cost");
+  assert.equal(recruitableCount(10, 2.5), 0, "non-integer cost");
+  assert.equal(recruitableCount(NaN, 5), 0);
+});
+
+test("progressToNextSoldier reports blocks still needed", () => {
+  assert.equal(progressToNextSoldier(0, 5), 5);
+  assert.equal(progressToNextSoldier(2, 5), 3);
+  assert.equal(progressToNextSoldier(5, 5), 5, "exactly funded -> full cost for the NEXT soldier");
+  assert.equal(progressToNextSoldier(7, 5), 3);
+});
+
+test("station simulation: 13 stored + stone -> 2 soldiers, 3 blocks remain stored", () => {
+  const stored = 13;
+  const soldiers = recruitableCount(stored, 5);
+  assert.equal(soldiers, 2);
+  const consumed = soldiers * 5;
+  assert.equal(consumed, 10);
+  assert.equal(stored - consumed, 3, "remainder preserved in the station");
+  assert.equal(progressToNextSoldier(stored - consumed, 5), 2);
+});
+
+test("station simulation: no stone -> nothing consumed", () => {
+  const stored = 9;
+  const resolution = resolveCommanderStone([], () => "RAAJYA-AAAAAAAA");
+  assert.equal(resolution.status, "none");
+  assert.equal(recruitableCount(stored, 5), 1, "affordable — but no stone means no recruitment");
+  assert.equal(stored, 9, "storage untouched");
+});
+
+// ---------------------------------------------------------------------------
+// Guard modes + command parsing
+// ---------------------------------------------------------------------------
+test("isGuardMode validates the seven command modes", () => {
+  for (const mode of ["stop", "here", "follow", "defend", "attack", "patrol"]) {
+    assert.equal(isGuardMode(mode), true, mode);
+  }
+  assert.equal(isGuardMode("status"), false, "status is a query, not a mode");
+  assert.equal(isGuardMode("radius"), false);
+  assert.equal(isGuardMode("STOP"), false, "modes are case-sensitive (commands are lowercased first)");
+  assert.equal(isGuardMode(undefined), false);
+  assert.equal(isGuardMode(123), false);
+});
+
+test("clampSpawnRadius enforces 1..16 with default 4", () => {
+  assert.equal(clampSpawnRadius(undefined), 4);
+  assert.equal(clampSpawnRadius(null), 4);
+  assert.equal(clampSpawnRadius("nope"), 4);
+  assert.equal(clampSpawnRadius(0), 1, "clamped up to the minimum");
+  assert.equal(clampSpawnRadius(-5), 1);
+  assert.equal(clampSpawnRadius(4), 4);
+  assert.equal(clampSpawnRadius(7.6), 8, "rounded");
+  assert.equal(clampSpawnRadius(99), 16);
+});
+
+test("parseCommandMessage splits command and argument", () => {
+  assert.deepEqual(parseCommandMessage("follow"), { command: "follow", arg: "", raw: "follow" });
+  assert.deepEqual(parseCommandMessage("  radius  6 "), { command: "radius", arg: "6", raw: "  radius  6 " });
+  assert.deepEqual(parseCommandMessage("STATUS"), { command: "status", arg: "", raw: "STATUS" });
+  assert.deepEqual(parseCommandMessage(undefined), { command: "", arg: "", raw: "" });
+  assert.deepEqual(parseCommandMessage(""), { command: "", arg: "", raw: "" });
 });

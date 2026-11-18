@@ -7,7 +7,7 @@
  *   - Royal Soldier Spawner block face (16x16)
  *   - Royal Guard entity skin (64x64, standard humanoid UV layout)
  *
- * Run once with: node scripts/gen-textures.mjs
+ * Run once with: node scripts/gen-textures.mjs   (or `npm run textures`)
  * The generated PNGs are committed as source assets (they are not build
  * artifacts); this script exists so they are reproducible/editable.
  */
@@ -113,15 +113,16 @@ class Canvas {
 const P = {
   navy: [24, 38, 84, 255],
   blue: [37, 78, 158, 255],
-  blueLight: [78, 132, 214, 255],
+  blueLight: [92, 148, 232, 255],
+  bluePale: [168, 205, 245, 255],
   blueDark: [26, 52, 112, 255],
   gold: [212, 175, 55, 255],
   goldLight: [247, 224, 132, 255],
   goldDark: [150, 116, 30, 255],
   skin: [224, 178, 126, 255],
   skinDark: [188, 142, 94, 255],
-  white: [244, 246, 252, 255],
-  black: [18, 22, 38, 255],
+  white: [250, 251, 255, 255],
+  black: [16, 20, 36, 255],
   dark: [16, 20, 36, 255],
   stone: [58, 62, 82, 255],
   stoneDark: [40, 44, 62, 255],
@@ -138,30 +139,26 @@ function drawPackIcon(size) {
   const px = (n) => Math.round(n * s);
   const R = (x, y, w, h, col) => c.rect(px(x), px(y), Math.max(1, px(w)), Math.max(1, px(h)), col);
 
-  // Outer gold frame + inner navy inset.
   c.frame(0, 0, size, size, Math.max(2, px(2)), P.gold);
   c.frame(px(4), px(4), size - px(8), size - px(8), Math.max(1, px(1)), P.goldDark);
 
-  // Crown: base band + three/five points with gems.
-  R(14, 38, 36, 9, P.gold);          // crown band
-  R(14, 36, 36, 2, P.goldLight);     // band highlight
-  R(12, 44, 40, 4, P.goldDark);      // band shadow
-  // Points
+  // Crown: base band + points with gems.
+  R(14, 38, 36, 9, P.gold);
+  R(14, 36, 36, 2, P.goldLight);
+  R(12, 44, 40, 4, P.goldDark);
   R(14, 22, 7, 16, P.gold);
   R(28, 16, 8, 22, P.gold);
   R(43, 22, 7, 16, P.gold);
   R(14, 20, 7, 3, P.goldLight);
   R(28, 14, 8, 3, P.goldLight);
   R(43, 20, 7, 3, P.goldLight);
-  // Point caps
   R(16, 18, 3, 3, P.goldLight);
   R(30, 12, 4, 3, P.goldLight);
   R(45, 18, 3, 3, P.goldLight);
-  // Gems on the band
   R(18, 40, 4, 4, P.emerald);
   R(30, 40, 4, 4, P.blueLight);
   R(42, 40, 4, 4, P.emerald);
-  // Small "R" monogram below the crown
+  // "R" monogram below the crown.
   R(26, 50, 3, 8, P.gold);
   R(29, 50, 6, 2, P.gold);
   R(33, 52, 3, 3, P.gold);
@@ -171,45 +168,66 @@ function drawPackIcon(size) {
 }
 
 // ---------------------------------------------------------------------------
-// Commander Stone: a gold-framed royal gem (16x16, transparent corners).
+// Commander Stone: a royal magical stone — faceted deep-blue gem in a gold
+// rim, gold crown sigil, sparkles. 16x16 with a transparent silhouette.
 // ---------------------------------------------------------------------------
 function drawCommanderStone() {
   const c = new Canvas(16, 16, P.transparent);
 
-  // Octagonal gold rim (clip the four corners for a gem silhouette).
+  // Octagonal gem silhouette (corners cut for a "cut stone" look).
+  const inside = (x, y) => {
+    if (x < 1 || x > 14 || y < 1 || y > 14) return false;
+    const cuts = [
+      x + y <= 4, x - y >= 11, y - x >= 11, x + y >= 25,
+    ];
+    return !cuts.some(Boolean);
+  };
+
+  // Gold rim + deep blue field.
   for (let y = 1; y <= 14; y++) {
+    for (let x = 1; x <= 14; x++) {
+      if (!inside(x, y)) continue;
+      const rim =
+        !inside(x - 1, y) || !inside(x + 1, y) ||
+        !inside(x, y - 1) || !inside(x, y + 1);
+      c.set(x, y, rim ? P.gold : P.blue);
+    }
+  }
+  // Faceted inner diamond (lighter), with a pale core.
+  for (let y = 2; y <= 13; y++) {
     for (let x = 2; x <= 13; x++) {
-      const corner = (x <= 3 && y <= 2) || (x >= 12 && y <= 2) || (x <= 3 && y >= 13) || (x >= 12 && y >= 13);
-      if (corner) continue;
-      c.set(x, y, P.gold);
-    }
-  }
-  // Blue gem field.
-  for (let y = 3; y <= 12; y++) {
-    for (let x = 4; x <= 11; x++) {
-      const corner = (x <= 4 && y <= 3) || (x >= 11 && y <= 3) || (x <= 4 && y >= 12) || (x >= 11 && y >= 12);
-      if (corner) continue;
-      c.set(x, y, P.blue);
-    }
-  }
-  // Faceted inner diamond (lighter).
-  for (let y = 4; y <= 11; y++) {
-    for (let x = 5; x <= 10; x++) {
+      if (!inside(x, y)) continue;
       const d = Math.abs(x - 7.5) + Math.abs(y - 7.5);
-      if (d <= 4) c.set(x, y, P.blueLight);
+      if (d < 3) c.set(x, y, P.bluePale);
+      else if (d < 5) c.set(x, y, P.blueLight);
     }
   }
-  // Central gold crown glyph + sparkle.
-  c.set(7, 5, P.goldLight);
-  c.rect(6, 6, 5, 1, P.goldLight);
-  c.rect(6, 7, 1, 2, P.goldLight);
-  c.set(8, 7, P.goldLight);
-  c.set(10, 7, P.goldLight);
-  c.rect(6, 9, 5, 1, P.goldLight);
-  c.set(11, 4, P.white);
-  c.set(12, 5, P.white);
-  // Highlight along top edge.
-  c.rect(5, 2, 6, 1, P.goldLight);
+  // Inner gold frame around the facet.
+  for (let x = 4; x <= 11; x++) {
+    c.set(x, 4, P.gold);
+    c.set(x, 11, P.gold);
+  }
+  for (let y = 4; y <= 11; y++) {
+    c.set(4, y, P.gold);
+    c.set(11, y, P.gold);
+  }
+
+  // Gold crown sigil in the pale core.
+  c.rect(6, 8, 4, 1, P.gold);        // band
+  c.set(6, 6, P.gold);               // left point
+  c.rect(7, 5, 2, 2, P.gold);        // middle point
+  c.set(9, 6, P.gold);               // right point
+  c.set(7, 6, P.goldLight);
+  c.set(6, 9, P.goldDark);
+  c.set(9, 9, P.goldDark);
+
+  // Sparkles (magical shine).
+  c.set(3, 3, P.white);
+  c.set(12, 4, P.white);
+  c.set(4, 12, P.white);
+  c.set(12, 12, P.bluePale);
+  // Top edge highlight on the rim.
+  for (let x = 5; x <= 10; x++) c.set(x, 1, P.goldLight);
   return c;
 }
 
@@ -219,32 +237,26 @@ function drawCommanderStone() {
 function drawSpawner() {
   const c = new Canvas(16, 16, P.stoneDark);
 
-  // Mottled stone base.
   for (let y = 0; y < 16; y++) {
     for (let x = 0; x < 16; x++) {
       if ((x * 7 + y * 13) % 11 < 4) c.set(x, y, P.stone);
     }
   }
-  // Gold frame.
   c.frame(0, 0, 16, 16, 1, P.gold);
   c.frame(1, 1, 14, 14, 1, P.goldDark);
-  // Inner royal-blue field.
   c.rect(2, 2, 12, 12, P.navy);
   c.frame(3, 3, 10, 10, 1, P.blueDark);
-  // Crown emblem.
-  c.rect(5, 9, 6, 2, P.gold);        // band
+  c.rect(5, 9, 6, 2, P.gold);        // crown band
   c.rect(5, 6, 2, 3, P.gold);        // left point
   c.rect(7, 5, 2, 4, P.gold);        // middle point
   c.rect(9, 6, 2, 3, P.gold);        // right point
   c.set(7, 4, P.goldLight);
   c.set(5, 5, P.goldLight);
   c.set(10, 5, P.goldLight);
-  // Emerald gem in the band.
   c.set(7, 9, P.emerald);
   c.set(8, 9, P.emerald);
   c.set(7, 10, P.emerald);
   c.set(8, 10, P.emerald);
-  // Corner rivets.
   c.set(2, 2, P.goldLight);
   c.set(13, 2, P.goldLight);
   c.set(2, 13, P.goldLight);
@@ -253,57 +265,53 @@ function drawSpawner() {
 }
 
 // ---------------------------------------------------------------------------
-// Royal Guard skin (64x64). Fill the WHOLE sheet with valid opaque pixels so
-// no UV region can ever sample a missing/transparent colour; then paint the
-// standard Steve-layout regions with a coherent blue+gold uniform.
+// Royal Guard skin (64x64, standard humanoid UV layout).
+//
+// Only the mapped UV regions are painted; everything else stays transparent
+// so the inflated "hat" layer never occludes the face (material is
+// entity_alphatest). Regions (Box UV, 64x64 player layout):
+//   head (0,0)-(32,16) · hat (32,0)-(64,16) [kept transparent]
+//   body (16,16)-(40,32) · rightArm (40,16)-(56,32) · rightLeg (0,16)-(16,32)
+//   leftArm (32,48)-(48,64) · leftLeg (16,48)-(32,64)
 // ---------------------------------------------------------------------------
 function drawRoyalGuard() {
-  const c = new Canvas(64, 64, P.blue); // fully opaque base everywhere
+  const c = new Canvas(64, 64, P.transparent);
 
-  // Gold micro-trim grid so every region reads as "royal uniform".
-  for (let y = 0; y < 64; y += 8) {
-    for (let x = 0; x < 64; x++) {
-      c.set(x, y, P.blueDark);
-    }
-  }
-
-  // ---- HEAD (0,0)-(32,16) : skin face + gold helmet ----
-  c.rect(0, 0, 32, 8, P.gold);          // helmet dome (top half)
-  c.rect(0, 8, 32, 8, P.skin);          // face (bottom half)
-  // Helmet shading / crest on top.
-  c.rect(8, 0, 16, 2, P.goldLight);
-  c.rect(0, 6, 32, 2, P.goldDark);      // helmet rim
-  c.rect(14, 2, 4, 4, P.goldLight);     // crest
-  // Front face is at (8,8)-(16,16): eyes, brows, mouth.
-  c.rect(9, 10, 2, 2, P.white);         // eye whites
+  // ---- HEAD (0,0)-(32,16): gold helmet dome over a visible face ----
+  c.rect(0, 0, 32, 6, P.gold);        // helmet dome (top of the box UV)
+  c.rect(0, 6, 32, 2, P.goldDark);    // helmet rim
+  c.rect(0, 8, 32, 8, P.skin);        // face level
+  c.rect(8, 0, 16, 2, P.goldLight);   // crest highlight on top face
+  c.rect(14, 2, 4, 4, P.goldLight);   // crest
+  // Front face (8,8)-(16,16): eyes, brows, mouth.
+  c.rect(9, 10, 2, 2, P.white);
   c.rect(13, 10, 2, 2, P.white);
-  c.set(10, 11, P.black);               // pupils
+  c.set(10, 11, P.black);
   c.set(14, 11, P.black);
-  c.rect(9, 9, 2, 1, P.skinDark);       // brows
+  c.rect(9, 9, 2, 1, P.skinDark);
   c.rect(13, 9, 2, 1, P.skinDark);
-  c.rect(11, 13, 2, 1, P.skinDark);     // mouth
-  // Cheeks shading on side faces.
-  c.rect(0, 12, 8, 4, P.skinDark);
+  c.rect(11, 13, 2, 1, P.skinDark);
+  c.rect(0, 12, 8, 4, P.skinDark);    // side shading
   c.rect(16, 12, 16, 4, P.skinDark);
 
-  // ---- BODY (16,16)-(40,32) : tunic + gold belt ----
+  // ---- BODY (16,16)-(40,32): royal tunic + gold belt/collar ----
   c.rect(16, 16, 24, 16, P.blue);
-  c.rect(20, 20, 8, 12, P.blueLight);   // front panel
-  c.rect(16, 24, 24, 2, P.gold);        // belt
-  c.rect(20, 20, 8, 2, P.goldLight);    // collar
-  c.rect(23, 20, 2, 12, P.gold);        // center placket
+  c.rect(20, 20, 8, 12, P.blueLight); // front panel
+  c.rect(16, 24, 24, 2, P.gold);      // belt
+  c.rect(20, 20, 8, 2, P.goldLight);  // collar
+  c.rect(23, 20, 2, 12, P.gold);      // center placket
   c.set(23, 24, P.goldLight);
   c.set(24, 24, P.goldLight);
 
-  // ---- RIGHT ARM (40,16)-(56,32) : sleeve + gold cuff ----
+  // ---- RIGHT ARM (40,16)-(56,32): sleeve + gold cuff + shoulder plate ----
   c.rect(40, 16, 16, 16, P.blue);
-  c.rect(40, 28, 16, 4, P.gold);        // cuff
+  c.rect(40, 28, 16, 4, P.gold);      // cuff
   c.rect(40, 27, 16, 1, P.goldDark);
-  c.rect(44, 18, 8, 8, P.blueLight);    // shoulder plate
+  c.rect(44, 18, 8, 8, P.blueLight);  // shoulder plate
 
-  // ---- RIGHT LEG (0,16)-(16,32) : trousers + boot ----
+  // ---- RIGHT LEG (0,16)-(16,32): trousers + gold-trimmed boot ----
   c.rect(0, 16, 16, 16, P.navy);
-  c.rect(0, 28, 16, 4, P.goldDark);     // boot
+  c.rect(0, 28, 16, 4, P.goldDark);
   c.rect(0, 27, 16, 1, P.gold);
 
   // ---- LEFT LEG (16,48)-(32,64) ----

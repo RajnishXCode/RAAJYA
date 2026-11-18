@@ -1,5 +1,5 @@
 {
-  "format_version": "1.21.80",
+  "format_version": "1.26.40",
   "minecraft:block": {
     "description": {
       "identifier": "raajya:royal_soldier_spawner",
@@ -9,7 +9,7 @@
       }
     },
     "components": {
-      "minecraft:geometry": "minecraft:geometry.full_block",
+      "minecraft:geometry": "geometry.raajya.royal_soldier_spawner",
       "minecraft:material_instances": {
         "*": {
           "texture": "royal_soldier_spawner",
@@ -21,8 +21,18 @@
       "minecraft:destructible_by_mining": {
         "seconds_to_destroy": 3.0
       },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 30
+      },
       "minecraft:loot": "loot_tables/blocks/royal_soldier_spawner.json",
-      "raajya:spawner_interact": {}
+      "minecraft:block_entity": {
+        "dynamic_properties": true,
+        "container": {
+          "slot_count": 9,
+          "title": "Royal Soldier Spawner",
+          "show_ui_on_interaction": true
+        }
+      }
     }
   }
 }

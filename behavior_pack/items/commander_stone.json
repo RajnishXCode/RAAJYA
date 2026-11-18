@@ -13,7 +13,7 @@
       "minecraft:max_stack_size": 1,
       "minecraft:icon": {
         "textures": {
-          "default": "raajya:commander_stone"
+          "default": "raajya_commander_stone"
         }
       },
       "minecraft:display_name": {

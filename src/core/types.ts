@@ -7,16 +7,11 @@ export interface ConsumeStep {
 }
 
 /**
- * Outcome of resolving which Commander ID authorises a recruitment.
- * Mirrors the return shape of `resolveCommanderStone` in
- * `utils/recruitment-logic.mjs` (plus a host-side `unsupported` case).
+ * Behavioural mode of a Royal Guard. Maps 1:1 to `raajya:mode_*` entity
+ * events / component groups in the entity JSON, and to the `/scriptevent
+ * raajya:cs <mode>` commands.
  */
-export type CommanderResolution =
-  | { status: "ok"; commanderId: string; initSlots: Array<{ slot: number; id: string }> }
-  | { status: "none" }
-  | { status: "multiple"; count: number }
-  | { status: "conflict"; distinctIds: string[] }
-  | { status: "unsupported" };
+export type GuardMode = "stop" | "here" | "follow" | "defend" | "attack" | "patrol";
 
 /** Why a recruitment attempt was refused (drives player-facing messages). */
 export type RecruitmentFailure =
@@ -32,6 +27,7 @@ export type RecruitmentFailure =
 export interface RecruitmentSuccess {
   ok: true;
   commanderId: string;
+  recruited: number;
 }
 
 export interface RecruitmentFailureResult {
@@ -40,3 +36,15 @@ export interface RecruitmentFailureResult {
 }
 
 export type RecruitmentResult = RecruitmentSuccess | RecruitmentFailureResult;
+
+/**
+ * Outcome of resolving which Commander ID authorises an action.
+ * Mirrors the return shape of `resolveCommanderStone` in
+ * `utils/recruitment-logic.mjs` (plus a host-side `unsupported` case).
+ */
+export type CommanderResolution =
+  | { status: "ok"; commanderId: string; initSlots: Array<{ slot: number; id: string }> }
+  | { status: "none" }
+  | { status: "multiple"; count: number }
+  | { status: "conflict"; distinctIds: string[] }
+  | { status: "unsupported" };

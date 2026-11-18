@@ -136,24 +136,25 @@
       <div class="grid">
         <ul>
           <li><strong>Commander Stone</strong> &mdash; non-stackable royal token with a unique, persistent Commander ID (e.g. <code>RAAJYA-7F31A9C2</code>).</li>
-          <li><strong>Royal Soldier Spawner</strong> &mdash; reusable, placeable custom block; crafted from 9 Diamond Blocks in a full 3&times;3.</li>
-          <li><strong>Royal Guard</strong> &mdash; a custom humanoid soldier entity with its own model, geometry, texture and render controller.</li>
+          <li><strong>Royal Soldier Spawner</strong> &mdash; a real recruitment station with a 9-slot container UI; craft it from 9 Diamond Blocks in a full 3&times;3.</li>
+          <li><strong>Royal Guard</strong> &mdash; fully-equipped soldiers: enchanted netherite sword, shield, Protection-enchanted diamond armor, all visibly rendered.</li>
         </ul>
         <ul>
-          <li><strong>Recruitment</strong> &mdash; interact with a spawner holding a Commander Stone + 5 Emerald Blocks to recruit exactly one guard.</li>
-          <li><strong>Ownership</strong> &mdash; every guard stores the Commander ID of the stone used; survives world save/reload and works for multiple players.</li>
-          <li><strong>Safety</strong> &mdash; resource checks, exact consumption (never the stone or spawner), safe-spawn search, rollback on error, interaction cooldown.</li>
+          <li><strong>Recruitment</strong> &mdash; deposit Emerald Blocks into the station; every 5 stored blocks recruits one soldier (spawn radius configurable, default 4).</li>
+          <li><strong>Soldier commands</strong> &mdash; <code>/scriptevent raajya:cs stop|here|follow|defend|attack|patrol|status</code> with real pathfinding AI.</li>
+          <li><strong>Ownership</strong> &mdash; every guard stores the Commander ID of the stone used; survives reloads, enforced per player, guards never attack players.</li>
         </ul>
       </div>
 
       <h2>Quick start (in-game)</h2>
       <ol>
-        <li>Give yourself a <strong>Commander Stone</strong> (Creative inventory) &mdash; interacting with a spawner assigns its persistent ID.</li>
+        <li>Give yourself a <strong>Commander Stone</strong> (Creative inventory or <code>/give</code>).</li>
         <li>Get 9 Diamond Blocks and craft a <strong>Royal Soldier Spawner</strong> (all 9 crafting slots).</li>
-        <li>Place the spawner and keep <strong>5 Emerald Blocks</strong> in your inventory.</li>
-        <li>Right-click / interact with the spawner to recruit a Royal Guard. Repeat as many times as you like.</li>
+        <li>Place the station and <strong>use</strong> it &mdash; its container opens. Put Emerald Blocks inside.</li>
+        <li>Close the station while carrying your Commander Stone: every 5 stored blocks recruits a fully-equipped Royal Guard nearby.</li>
+        <li>Command your guard with <code>/scriptevent raajya:cs status</code>, then <code>follow</code>, <code>defend</code>, <code>attack</code>, <code>patrol</code>, <code>here</code> or <code>stop</code>.</li>
       </ol>
-      <p class="note">Advanced command authorisation, combat/patrol AI and a Barracks are intentionally out of scope for this initial phase.</p>
+      <p class="note">A Barracks, advanced soldier management and survival recipes for the stone are intentionally out of scope for this phase.</p>
     </main>
 
     <footer>

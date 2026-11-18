@@ -1,14 +1,15 @@
 /**
- * Inventory translation layer for the soldier spawner.
+ * Inventory helpers shared by the station (block container) and players.
  *
- * Converts the live Script API `Container` into plain snapshots that the pure
- * `recruitment-logic.mjs` helpers can reason about, then applies an exact
- * consumption plan back to the real inventory with write-back and rollback.
+ * Converts live Script API `Container`s into plain snapshots that the pure
+ * `recruitment-logic.mjs` helpers reason about, then applies exact consumption
+ * plans back with write-back and rollback. Works for ANY container (player
+ * inventory or the station's block-entity container).
  */
 
-import { EntityComponentTypes, type EntityInventoryComponent } from "@minecraft/server";
-import type { Container, ItemStack, Player } from "@minecraft/server";
-import { VANILLA } from "../../core/ids";
+import { EntityComponentTypes, ItemStack, type EntityInventoryComponent } from "@minecraft/server";
+import type { Container, Player } from "@minecraft/server";
+import { ITEMS, VANILLA } from "../../core/ids";
 import type { ConsumeStep } from "../../core/types";
 import { countItem, planConsume } from "../../utils/recruitment-logic.mjs";
 
@@ -34,8 +35,8 @@ export function getInventoryContainer(player: Player): Container | undefined {
   return component.container;
 }
 
-/** A plain, detached snapshot of every inventory slot (index-aligned). */
-function snapshotSlots(container: Container): Array<SlotSnapshot | undefined> {
+/** A plain, detached snapshot of every container slot (index-aligned). */
+export function snapshotSlots(container: Container): Array<SlotSnapshot | undefined> {
   const slots: Array<SlotSnapshot | undefined> = [];
   for (let slot = 0; slot < container.size; slot++) {
     const stack = container.getItem(slot);
@@ -44,7 +45,7 @@ function snapshotSlots(container: Container): Array<SlotSnapshot | undefined> {
   return slots;
 }
 
-/** Count Emerald Blocks across all stacks in the player's whole inventory. */
+/** Count Emerald Blocks across all stacks of any container. */
 export function countEmeraldBlocks(container: Container): number {
   return countItem(snapshotSlots(container), VANILLA.EMERALD_BLOCK);
 }
@@ -60,10 +61,10 @@ export function planEmeraldConsumption(
 }
 
 /**
- * Apply a consumption plan to the real inventory.
+ * Apply a consumption plan to a real container.
  *
  * Each affected slot is re-read and verified before mutation. Original
- * ItemStacks are cloned first so `rollback()` can fully restore the inventory
+ * ItemStacks are cloned first so `rollback()` can fully restore the container
  * if any later step fails (used by the recruitment transaction).
  *
  * `container.setItem(slot, ...)` is the REQUIRED write-back: `getItem()`
@@ -74,7 +75,6 @@ export function applyConsumptionPlan(
   plan: ConsumeStep[],
   typeId: string,
 ): ConsumptionResult {
-  /** @type {Array<{ slot: number, original: ItemStack }>} */
   const originals: Array<{ slot: number; original: ItemStack }> = [];
 
   const rollback = (): void => {
@@ -110,4 +110,34 @@ export function applyConsumptionPlan(
     rollback();
     return { ok: false, rollback: () => {} };
   }
+}
+
+/**
+ * Return every Commander Stone found in a container to a player's inventory.
+ * Guarantees the "never deposited or consumed" invariant if a player manually
+ * drops a stone into the station UI. Returns how many were ejected.
+ */
+export function ejectCommanderStones(container: Container, player: Player): number {
+  let ejected = 0;
+  const playerContainer = getInventoryContainer(player);
+  for (let slot = 0; slot < container.size; slot++) {
+    const stack = container.getItem(slot);
+    if (!stack || stack.typeId !== ITEMS.COMMANDER_STONE) {
+      continue;
+    }
+    container.setItem(slot, undefined);
+    if (playerContainer) {
+      const leftover = playerContainer.addItem(stack);
+      if (!leftover) {
+        ejected++;
+        continue;
+      }
+      // Inventory full: hand back what did not fit.
+      playerContainer.addItem(leftover);
+    }
+    // Absolute fallback: drop at the player's feet rather than lose the stone.
+    player.dimension.spawnItem(stack, player.location);
+    ejected++;
+  }
+  return ejected;
 }

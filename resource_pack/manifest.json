@@ -4,7 +4,7 @@
     "name": "RAAJYA Resource Pack",
     "description": "RAAJYA — royal/fantasy textures, geometry, render controllers and localization. (RP)",
     "uuid": "36023ad2-573b-4d76-8335-a23c67f429c4",
-    "version": [1, 0, 0],
+    "version": [1, 1, 0],
     "min_engine_version": [1, 26, 60]
   },
   "modules": [

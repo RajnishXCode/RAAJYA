@@ -1,49 +1,74 @@
-# RAAJYA — Manual In-Game Test Checklist
+# RAAJYA — Manual In-Game Test Checklist (v1.1.0)
 
-> **Testing limitation (honest statement):** Minecraft Bedrock Edition **cannot be launched in the development environment** used to build this project. Therefore **no in-game test has been executed**. The offline validation that *was* run is listed at the bottom of this file. The checklist below must be performed by a human in Minecraft Bedrock **1.26.60** (or a compatible newer build) after importing `dist/RAAJYA.mcaddon`.
+> **Testing limitation (honest statement):** Minecraft Bedrock Edition **cannot be launched in the development environment** used to build this project. **No in-game test has been executed.** All offline validation that *can* run does pass (list at the bottom). This checklist must be performed by a human on Minecraft Bedrock **1.26.60+** after importing `dist/RAAJYA.mcaddon`. Enable the content log (Settings → Creator → *Enable Content Log*) to see any pack errors, and keep chat visible.
 
 ## Setup
-- Use a fresh **Creative** test world (or a copy of a world you don't mind modifying).
-- Import `RAAJYA.mcaddon`; ensure **both** the RAAJYA Behavior Pack and RAAJYA Resource Pack are active in the world.
-- No experiments/experimental toggles are required on 1.26.60 (custom items, blocks, entities and the stable Script API are all out of preview).
-- Keep the world's script/chat log visible (or enable content log errors) to observe the `[RAAJYA]` messages.
+1. Import `RAAJYA.mcaddon`; create a **Creative** world with **cheats ON**; activate **both** RAAJYA packs (they are linked).
+2. No experiments/toggles are required on 1.26.60.
+3. Useful commands:
+   ```
+   /give @s raajya:commander_stone
+   /give @s raajya:royal_soldier_spawner
+   /give @s minecraft:diamond_block 9
+   /give @s minecraft:emerald_block 64
+   ```
+   (A "Spawn Royal Guard" egg also exists for inspecting the model — egg-spawned guards are bare by design.)
 
-## Checklist
+## A. Commander Stone
+| # | Test | Expected |
+|---|---|---|
+| 1 | `/give @s raajya:commander_stone 1` | Exactly **one** stone with the **royal gem icon** (gold rim, blue faceted stone, crown sigil); `/give … 2` leaves two separate slots (**stack size 1**). |
+| 2 | Hover the stone after any station/command use | Lore shows `Commander ID: RAAJYA-XXXXXXXX`. |
+| 3 | Move it between slots; save, quit, reload | **Same ID** each time. |
 
-| # | Test | Expected result |
-|---|------|-----------------|
-| 1 | Import the `.mcaddon` (e.g. double-click / "Open with Minecraft"). | Minecraft imports **two** packs: RAAJYA Behavior Pack + RAAJYA Resource Pack. |
-| 2 | Activate both packs in a test world (they are linked — activating one offers the other). | Both packs listed as active; no missing-dependency error. |
-| 3 | Obtain a **Commander Stone** (Creative inventory → Items). | Item present, correct name/icon, **stack size 1** (you cannot stack two into one slot). |
-| 4 | Interact with a spawner (or first initialization) and inspect the stone. | Its lore shows a persistent unique ID like `RAAJYA-7F31A9C2`; save, exit, reload the world → **ID unchanged**; move it between slots → **ID unchanged**. |
-| 5 | Craft the spawner: place **9 Diamond Blocks** in all 9 crafting-table slots. | Produces **1 Royal Soldier Spawner**; exactly 9 Diamond Blocks consumed. |
-| 6 | Place the spawner **anywhere** (e.g. open ground, on a wall-side block). | Block places with its royal/gold texture and display name; breakable (drops itself). |
-| 7 | Interact with the spawner **without** any Commander Stone. | Clear error message ("You need a Commander Stone…"); **no soldier spawns**, **no Emeralds consumed**. |
-| 8 | With a Commander Stone but **fewer than 5 Emerald Blocks** (e.g. 4). | Clear "You need 5 Emerald Blocks" message; **no spawn**, **no Emeralds consumed**. |
-| 9 | With a Commander Stone + **≥ 5 Emerald Blocks**, interact with the spawner. | Exactly **one** Royal Guard spawns at a safe nearby position; success message shows the Commander ID. |
-| 10 | Re-count Emerald Blocks after step 9. | **Exactly 5** consumed, remainder preserved (including when split across several stacks — test with e.g. 3 + 2 + 4). |
-| 11 | Check the Commander Stone after recruitment. | Still in inventory, **not consumed**, ID unchanged. |
-| 12 | Interact with the **same** spawner again. | It still works (reusable); another guard spawns; spawner **not consumed**. |
-| 13 | Recruit **multiple** soldiers (repeat 9). | Each recruitment costs exactly 5 Emerald Blocks and spawns exactly one guard; rapid double-clicks do **not** duplicate a recruitment (1 s cooldown). |
-| 14 | Verify every guard has the **correct Commander ID**. | All guards recruited with the same stone carry the same ID (persisted on the entity; survives world save/reload). Use a behaviour-log command/add-on or a temporary debug script reading `getDynamicProperty("raajya:commander_id")`. |
-| 15 | **Multiplayer:** Player A with stone `RAAJYA-A…` and Player B with stone `RAAJYA-B…` each recruit (same or different spawners). | A's guards store A's ID, B's guards store B's ID — ownership follows the **stone**, not the nearby player or the spawner. Carrying two stones with different IDs shows a clear "conflicting"/"multiple stones" message and refuses to recruit. |
+## B. Royal Soldier Spawner (station)
+| # | Test | Expected |
+|---|---|---|
+| 4 | Crafting table: 9 Diamond Blocks in **all 9 slots** | Produces **1** station; 9 blocks consumed. |
+| 5 | `/give @s raajya:royal_soldier_spawner 1` | Gives the **placeable station block** (not an egg); place it anywhere. |
+| 6 | Interact (use) the placed station | The **station container UI opens** ("Royal Soldier Spawner", 9 slots); chat/action bar shows stored/progress/recruited/radius. |
+| 7 | Put **< 5** Emerald Blocks in, close | Status line reports them stored; **no soldier**, nothing consumed. |
+| 8 | Put Emerald Blocks in totalling **≥ 5** (try 13, split across slots) **while holding your Commander Stone**, close | **2 soldiers** spawn nearby (within 4 blocks), each visibly equipped; **10 blocks consumed**, **3 remain stored**; success message + updated status. |
+| 9 | Reopen the station | The 3 remaining blocks are still there; take them back out any time (withdrawal works). |
+| 10 | Deposit ≥ 5 blocks **without** any Commander Stone, close | "A Commander Stone is required…" — blocks **remain stored**, nothing consumed. |
+| 11 | Drop your Commander Stone **into the station UI**, close | The stone is **ejected back** to you ("never deposited or consumed"); recruitment still processes the emeralds. |
+| 12 | Box the station in completely and repeat 8 | "no safe, unoccupied space" — nothing consumed. |
+| 13 | Try to break a station holding items | Break is **refused** ("Withdraw all items…"); empty station breaks normally and drops itself. |
+| 14 | `/scriptevent raajya:cs radius 6` then repeat 8 | Soldiers spawn within ~6 blocks; status shows the new radius. |
 
-### Additional safety checks (recommended)
-- Block all spawn space around the spawner → interacting shows "no safe, unoccupied space" and consumes nothing.
-- Hold 2+ Commander Stones with **different** IDs → recruitment is refused with an ambiguity message (no silent assignment).
-- Verify no purple/black "missing texture" visuals for the item, block, and entity, and that the guard renders with its geometry, texture and render controller in an idle standing pose.
+## C. Royal Guard (equipment & AI)
+| # | Test | Expected |
+|---|---|---|
+| 15 | Look at a recruited guard | **Netherite sword in hand, shield in offhand, full diamond armor** (visible), enchanted glints; walks with animated legs/arms, head tracks you. |
+| 16 | Spawn a zombie/skeleton nearby (or `/summon zombie`) in **defend/attack** mode | Guards **pathfind to it and kill it** with melee swings — no teleporting. |
+| 17 | Attack a guard yourself | Guards do **not** retaliate against you (players are excluded from all targeting). |
+| 18 | Have guards fight near another guard | No friendly-fire retaliation loops (guards exclude the `royal_guard` family). |
+| 19 | Save, quit, reload the world | Guards still exist, still **wear their equipment**, still obey commands, IDs unchanged. |
 
-## Offline validation that WAS run (all passing)
+## D. Commands (`/scriptevent raajya:cs …`)
+| # | Test | Expected |
+|---|---|---|
+| 20 | `status` | "You command N Royal Guards under RAAJYA-…", grouped by mode. |
+| 21 | `follow` | Guards **walk after you** (pathfinding) and stop within ~3 blocks. |
+| 22 | `here` | Guards march to you; once within ~3 blocks they **stop and hold**. |
+| 23 | `defend` | Guards stay near you; hostiles that attack you (or that you attack) get intercepted and killed. |
+| 24 | `attack` | Guards roam/hunt hostiles in a wide radius. |
+| 25 | `patrol` | Guards wander the area and engage hostiles they meet. |
+| 26 | `stop` | Guards stand fast everywhere. |
+| 27 | Run a command **without** a Commander Stone | Clear "you command no Royal Guards" feedback; nothing changes. |
 
-- `npm run typecheck` — strict TypeScript (`tsc --noEmit`), no errors.
-- `npm test` — **21** unit tests of the exact production recruitment logic (`countItem`, `planConsume` exact-5-across-stacks consumption, ID generation/validation, ambiguous-stone resolution, end-to-end recruitment simulation).
-- `npm run validate` — every JSON parsed; manifest UUIDs unique/valid + mutual BP↔RP link; `@minecraft/server` dependency matches the pinned npm version; custom identifiers consistent across BP/RP/lang/TS; 3×3 Diamond recipe (9 → 1); all assets present and **5 PNGs decode**; workflow/site paths consistent; `.mcpack` and `.mcaddon` archives structurally valid.
-- `npm run build` — compiles/bundles a single ESM `scripts/main.js`, stages both packs with version injection, and packages `.mcpack` + `.mcaddon` + versioned copy + SHA-256 checksums; archive validation passes.
-- `npm run site` — prepares the Pages artifact with placeholders resolved.
+## E. Multiplayer / ownership
+| # | Test | Expected |
+|---|---|---|
+| 28 | Player B (own stone) runs `status`/commands while A's guards are nearby | B's commands affect **only B's guards**; A's army ignores them. |
+| 29 | B recruits at A's station with B's stone | B's guards store **B's** Commander ID; ownership is from the stone, never the station or proximity. |
+| 30 | B tries to break into A's flow: deposit with no stone, etc. | Same safe refusals as solo play. |
 
-## Known limitations
+## Automated validation that WAS run (all passing)
+- `npm run typecheck` — strict TypeScript (`tsc --noEmit`).
+- `npm test` — **28** unit tests: exact-5-across-stacks consumption, station economy (`recruitableCount`, remainder preservation, no-stone refusal), Commander ID generation/validation/ambiguity rules, mode validation, radius clamping, command parsing.
+- `npm run validate` — every JSON parsed; manifest UUIDs unique/valid + mutual BP↔RP link + pinned `@minecraft/server` 2.11.0; **station container** (`minecraft:block_entity` with `dynamic_properties` + 9-slot `container` + `show_ui_on_interaction`); **root-cause guards** (no colon atlas shortnames, no script custom components in block JSON); guard AI checks (navigation/melee/persistent/tameable/follow_owner without teleport/mode events/player-excluded targeting); client entity (`enable_attachables`, vanilla humanoid animations); geometry bone set (`rightItem`/`leftItem`/`hat`…); 3×3 diamond recipe; all 14 required assets present and **5 PNGs decode**; workflow/site consistency; `.mcpack`/`.mcaddon` structure.
+- `npm run build` — bundles a single ESM `scripts/main.js` (verified to contain equipment/commands/station logic), stages both packs (version injected), packages + verifies archives, writes SHA-256 checksums.
 
-- Real in-game behaviour (event firing, rendering, world-save persistence, multiplayer) **cannot** be proven without launching Minecraft.
-- Target engine is **1.26.60** (matches `@minecraft/server` 2.11.0); older builds may refuse the pack or not load the script.
-- Commander IDs are random 32-bit hex (collision astronomically unlikely, not cryptographically guaranteed).
-- The `.mcaddon` bundles the two `.mcpack` files; the standalone `.mcpack` files are also provided for direct per-device import.
+## Not provable offline (must be checked in-game)
+Container UI opening, equipment rendering on the model, pathfinding quality, animation playback, persistence across real world saves, multiplayer behaviour, and the container open/close event delivery are engine behaviours — items 1–30 above cover them.

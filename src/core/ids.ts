@@ -20,8 +20,21 @@ export const ENTITIES = {
   ROYAL_GUARD: "raajya:royal_guard",
 } as const;
 
-/** Vanilla identifiers used by the recruitment economy and crafting recipe. */
+/** Vanilla identifiers used by the economy, crafting recipe and equipment. */
 export const VANILLA = {
   EMERALD_BLOCK: "minecraft:emerald_block",
   DIAMOND_BLOCK: "minecraft:diamond_block",
+  NETHERITE_SWORD: "minecraft:netherite_sword",
+  DIAMOND_HELMET: "minecraft:diamond_helmet",
+  DIAMOND_CHESTPLATE: "minecraft:diamond_chestplate",
+  DIAMOND_LEGGINGS: "minecraft:diamond_leggings",
+  DIAMOND_BOOTS: "minecraft:diamond_boots",
+  SHIELD: "minecraft:shield",
+  PLAYER: "minecraft:player",
+} as const;
+
+/** Texture-atlas shortnames (must not contain colons). */
+export const TEXTURES = {
+  COMMANDER_STONE: "raajya_commander_stone",
+  SPAWNER: "royal_soldier_spawner",
 } as const;

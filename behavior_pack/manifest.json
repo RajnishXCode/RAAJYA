@@ -4,7 +4,7 @@
     "name": "RAAJYA Behavior Pack",
     "description": "RAAJYA — Commander Stone, Royal Soldier Spawner and Royal Guard recruitment. (BP)",
     "uuid": "09c3e206-3bd0-45f5-a343-c5010d6f737a",
-    "version": [1, 0, 0],
+    "version": [1, 1, 0],
     "min_engine_version": [1, 26, 60]
   },
   "modules": [

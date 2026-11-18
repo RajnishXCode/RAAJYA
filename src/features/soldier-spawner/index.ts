@@ -1,40 +1,70 @@
 /**
- * Event-facing entry point for the Royal Soldier Spawner.
+ * Event-facing entry point for the Royal Soldier Spawner station.
  *
- * A single interaction can be delivered by BOTH the V2 custom block component
- * (`onPlayerInteract`) and the global `playerInteractWithBlock` event. A
- * per-player cooldown is set at the START of every attempt, so whichever
- * source fires first wins and the other is suppressed. This guarantees:
- *   - exactly one recruitment (and one message) per interaction;
- *   - no duplicate Emerald consumption or duplicate soldiers;
- *   - rapid interaction bursts are debounced.
+ * The station's container UI opens on interaction (`show_ui_on_interaction`),
+ * so deposits/withdrawals happen through the real container. We hook the
+ * container open/close events (both carry the accessing player) to show status
+ * and to process recruitment. A short per-player cooldown on close-processing
+ * guards against duplicated close events for the same interaction.
  */
 
-import { system, type Block, type Player } from "@minecraft/server";
+import { system, world } from "@minecraft/server";
+import type { Block } from "@minecraft/server";
+import { BLOCKS } from "../../core/ids";
 import { COOLDOWN_TICKS } from "../../core/constants";
-import { failureMessage, successMessage } from "../../utils/messages";
 import { logError } from "../../utils/log";
-import { recruit } from "./recruitment";
+import { isPlayer, processStationClose, showStationStatus } from "./station";
 
-/** Player IDs currently within the interaction cooldown window. */
+/** Player IDs currently within the close-processing cooldown window. */
 const cooldowns = new Set<string>();
 
-export function handleSpawnerInteraction(player: Player, spawner: Block): void {
-  const playerId = player.id;
+function isOnCooldown(playerId: string): boolean {
+  return cooldowns.has(playerId);
+}
 
-  // Deduplicate the two event sources and debounce rapid interactions.
-  if (cooldowns.has(playerId)) {
-    return;
-  }
+function startCooldown(playerId: string): void {
   cooldowns.add(playerId);
   system.runTimeout(() => cooldowns.delete(playerId), COOLDOWN_TICKS);
+}
 
-  try {
-    const result = recruit(player, spawner);
-    player.sendMessage(result.ok ? successMessage(result.commanderId) : failureMessage(result.reason));
-  } catch (error) {
-    // Last-resort guard: never let a script exception break the interaction.
-    logError("Unexpected error during recruitment", error);
-    player.sendMessage(failureMessage("recruitment_error"));
-  }
+function isStation(block: Block): boolean {
+  return block.typeId === BLOCKS.ROYAL_SOLDIER_SPAWNER;
+}
+
+/** Wire all station event handlers. Called once from main.ts. */
+export function registerStationEvents(): void {
+  // Status whenever a player opens the station UI.
+  world.afterEvents.blockContainerOpened.subscribe((event) => {
+    try {
+      if (!isStation(event.block)) {
+        return;
+      }
+      const player = event.openSource.entity;
+      if (player && isPlayer(player)) {
+        showStationStatus(player, event.block);
+      }
+    } catch (error) {
+      logError("Station open handler error", error);
+    }
+  });
+
+  // Process deposits/recruitment whenever a player closes the station UI.
+  world.afterEvents.blockContainerClosed.subscribe((event) => {
+    try {
+      if (!isStation(event.block)) {
+        return;
+      }
+      const player = event.closeSource.entity;
+      if (!player || !isPlayer(player)) {
+        return;
+      }
+      if (isOnCooldown(player.id)) {
+        return;
+      }
+      startCooldown(player.id);
+      processStationClose(event.block, player);
+    } catch (error) {
+      logError("Station close handler error", error);
+    }
+  });
 }

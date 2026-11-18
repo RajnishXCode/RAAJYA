@@ -379,29 +379,120 @@ export function validateIdentifiers() {
 
   const block = loadJson(path.join(PATHS.bp, "blocks", "royal_soldier_spawner.json"));
   assert(block["minecraft:block"].description.identifier === EXPECTED.blockId, "Block identifier mismatch");
-  // The V2 custom component must be bound to the block (modern interaction).
-  assert(block["minecraft:block"].components["raajya:spawner_interact"] !== undefined,
-    "Block must bind the raajya:spawner_interact V2 custom component");
-  // Modern custom blocks require BOTH geometry and material_instances (1.21.80+).
   const blockComponents = block["minecraft:block"].components;
+  // ROOT-CAUSE GUARD: the block must NOT reference any script-registered
+  // custom component — that couples block loading to script health and was the
+  // cause of the "spawner item missing" failure.
+  for (const key of Object.keys(blockComponents)) {
+    assert(!key.startsWith("raajya:"),
+      `Block JSON must not reference script custom components (found "${key}") — they couple block loading to script registration`);
+  }
+  // Modern custom blocks require BOTH geometry and material_instances (1.21.80+).
   assert(blockComponents["minecraft:geometry"] && blockComponents["minecraft:material_instances"],
     "Custom block must define both minecraft:geometry and minecraft:material_instances");
   assert(blockComponents["minecraft:material_instances"]["*"],
     "minecraft:material_instances must define the '*' default key");
+  // The station needs the real block-entity container (stable custom-block
+  // inventory API) plus per-instance dynamic properties.
+  const blockEntity = blockComponents["minecraft:block_entity"];
+  assert(blockEntity, "Station block must declare minecraft:block_entity");
+  assert(blockEntity.dynamic_properties === true,
+    "minecraft:block_entity must enable dynamic_properties for per-instance station state");
+  assert(blockEntity.container && Number.isInteger(blockEntity.container.slot_count) &&
+    blockEntity.container.slot_count >= 1 && blockEntity.container.slot_count <= 54,
+    "minecraft:block_entity.container.slot_count must be 1..54");
+  assert(blockEntity.container.show_ui_on_interaction !== false,
+    "Station container must open its UI on interaction");
+  assert(typeof blockEntity.container.title === "string" && blockEntity.container.title.length > 0,
+    "Station container must have a title");
+
+  // Block geometry reference must resolve to our own RP geometry file.
+  const blockGeometryId = blockComponents["minecraft:geometry"];
+  const blockGeometry = loadJson(path.join(PATHS.rp, "models", "blocks", "royal_soldier_spawner.geo.json"));
+  const blockGeometryIds = blockGeometry["minecraft:geometry"].map((g) => g.description.identifier);
+  assert(blockGeometryIds.includes(blockGeometryId),
+    `Block geometry reference "${blockGeometryId}" must resolve in RP models/blocks/`);
 
   const entity = loadJson(path.join(PATHS.bp, "entities", "royal_guard.json"));
   assert(entity["minecraft:entity"].description.identifier === EXPECTED.entityId, "BP entity identifier mismatch");
+  assert(entity["minecraft:entity"].description.is_experimental === false,
+    "Royal Guard must not be experimental");
+  // AI: real data-driven behaviors (mirrors vanilla 1.26 shapes).
+  const entityComponents = entity["minecraft:entity"].components;
+  assert(entityComponents["minecraft:navigation.walk"], "Royal Guard needs minecraft:navigation.walk");
+  assert(entityComponents["minecraft:movement.basic"], "Royal Guard needs minecraft:movement.basic");
+  assert(entityComponents["minecraft:behavior.melee_box_attack"], "Royal Guard needs melee_box_attack");
+  assert(entityComponents["minecraft:persistent"], "Royal Guard must be persistent (no despawn)");
+  assert(entityComponents["minecraft:tameable"], "Royal Guard needs minecraft:tameable (script tames it for follow_owner)");
+  assert(!entityComponents["minecraft:type_family"].family.includes("monster"),
+    "Royal Guard must NOT be in the monster family (other guards would target it)");
+  const hurtFilters = JSON.stringify(entityComponents["minecraft:behavior.hurt_by_target"]);
+  assert(hurtFilters.includes('"player"'), "hurt_by_target must exclude players from retaliation");
+  // Mode component groups + events for every command mode.
+  const groups = entity["minecraft:entity"].component_groups;
+  const events = entity["minecraft:entity"].events;
+  assert(groups["raajya:moving_follow"] && groups["raajya:moving_follow"]["minecraft:behavior.follow_owner"],
+    "Component group raajya:moving_follow needs behavior.follow_owner (real pathfinding follow)");
+  assert(groups["raajya:moving_follow"]["minecraft:behavior.follow_owner"].post_teleport_distance === -1,
+    "follow_owner must disable teleporting (post_teleport_distance: -1)");
+  assert(groups["raajya:combat_defend"] && groups["raajya:combat_defend"]["minecraft:behavior.nearest_attackable_target"],
+    "Component group raajya:combat_defend needs nearest_attackable_target");
+  assert(groups["raajya:combat_attack"] && groups["raajya:combat_attack"]["minecraft:behavior.nearest_attackable_target"],
+    "Component group raajya:combat_attack needs nearest_attackable_target");
+  assert(groups["raajya:move_patrol"] && groups["raajya:move_patrol"]["minecraft:behavior.random_stroll"],
+    "Component group raajya:move_patrol needs random_stroll");
+  const targeting = JSON.stringify(groups);
+  assert(!/"value"\s*:\s*"player"/.test(targeting),
+    "Guards must never target players (nearest_attackable_target filters must exclude the player family)");
+  for (const mode of ["stop", "here", "follow", "defend", "attack", "patrol"]) {
+    assert(events[`raajya:mode_${mode}`], `Entity must define the raajya:mode_${mode} event`);
+  }
 
   const client = loadJson(path.join(PATHS.rp, "entity", "royal_guard.json"));
   assert(client["minecraft:client_entity"].description.identifier === EXPECTED.entityId,
     "RP client entity identifier mismatch");
+  assert(client["minecraft:client_entity"].description.enable_attachables === true,
+    "Client entity must enable_attachables so equipment (armor/sword/shield) renders");
+  const anims = client["minecraft:client_entity"].description.animations ?? {};
+  for (const anim of [
+    "animation.humanoid.move",
+    "animation.humanoid.look_at_target.default",
+    "animation.humanoid.holding",
+    "animation.humanoid.attack.rotations",
+    "animation.humanoid.bob",
+  ]) {
+    assert(Object.values(anims).includes(anim), `Client entity must reference vanilla animation ${anim}`);
+  }
+  // Entity geometry must use the vanilla humanoid bone set so vanilla armor
+  // attachables and held items bind correctly (rightItem/leftItem bones).
+  const guardGeometryId = client["minecraft:client_entity"].description.geometry.default;
+  const guardGeometry = loadJson(path.join(PATHS.rp, "models", "entity", "royal_guard.geo.json"));
+  const guardGeometryDef = guardGeometry["minecraft:geometry"].find(
+    (g) => g.description.identifier === guardGeometryId,
+  );
+  assert(guardGeometryDef, `Client entity geometry "${guardGeometryId}" must resolve in RP models/entity/`);
+  const boneNames = guardGeometryDef.bones.map((b) => b.name.toLowerCase());
+  for (const bone of ["body", "head", "rightarm", "leftarm", "rightleg", "leftleg", "rightitem", "leftitem", "hat"]) {
+    assert(boneNames.includes(bone), `Guard geometry must define the vanilla humanoid bone "${bone}"`);
+  }
 
   const blocksJson = loadJson(path.join(PATHS.rp, "blocks.json"));
   assert(blocksJson[EXPECTED.blockId], "RP blocks.json must define the spawner");
 
+  // ROOT-CAUSE GUARD: item icon shortnames must not contain colons (the
+  // original missing-icon bug) and must resolve in the item atlas.
   const itemTex = loadJson(path.join(PATHS.rp, "textures", "item_texture.json"));
-  assert(itemTex.texture_data && Object.values(itemTex.texture_data).some((t) =>
-    String(t.textures).includes("commander_stone")), "RP item_texture.json must reference the commander stone texture");
+  for (const key of Object.keys(itemTex.texture_data ?? {})) {
+    assert(!key.includes(":"), `item_texture.json shortname "${key}" must not contain a colon`);
+  }
+  const itemDef = loadJson(path.join(PATHS.bp, "items", "commander_stone.json"));
+  const iconShortname = itemDef["minecraft:item"].components["minecraft:icon"]?.textures?.default;
+  assert(iconShortname, "Commander Stone must define minecraft:icon textures.default");
+  assert(!iconShortname.includes(":"), `Icon shortname "${iconShortname}" must not contain a colon`);
+  assert(itemTex.texture_data?.[iconShortname],
+    `Icon shortname "${iconShortname}" must resolve in item_texture.json`);
+  assert(String(itemTex.texture_data[iconShortname].textures) === "textures/items/commander_stone",
+    "item_texture.json must map the shortname to textures/items/commander_stone");
 
   const lang = readText(path.join(PATHS.rp, "texts", "en_US.lang"));
   for (const key of [
@@ -412,7 +503,7 @@ export function validateIdentifiers() {
     assert(lang.includes(key), `en_US.lang missing localization key ${key}`);
   }
 
-  pass("Custom identifiers consistent across BP, RP, lang, and TypeScript");
+  pass("Custom identifiers, station container, guard AI/equipment and atlas shortnames all consistent");
 }
 
 export function validateRecipe() {
@@ -472,6 +563,7 @@ export function validateAssets() {
     "resource_pack/textures/items/commander_stone.png",
     "resource_pack/textures/blocks/royal_soldier_spawner.png",
     "resource_pack/textures/entity/royal_guard.png",
+    "resource_pack/models/blocks/royal_soldier_spawner.geo.json",
     "resource_pack/models/entity/royal_guard.geo.json",
     "resource_pack/entity/royal_guard.json",
     "resource_pack/render_controllers/royal_guard.json",

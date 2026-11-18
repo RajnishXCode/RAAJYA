@@ -169,3 +169,71 @@ export function resolveCommanderStone(stones, generateId) {
 /** Exposed for validation tooling / documentation. */
 export const COMMANDER_ID_PREFIX = ID_PREFIX;
 export const COMMANDER_ID_PATTERN = ID_PATTERN;
+
+// ---------------------------------------------------------------------------
+// Station economy + command parsing (pure, unit-tested)
+// ---------------------------------------------------------------------------
+
+/** All behavioural guard modes, matching `raajya:mode_*` entity events. */
+export const GUARD_MODES = ["stop", "here", "follow", "defend", "attack", "patrol"];
+
+/**
+ * Whether a value is a valid guard mode.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function isGuardMode(value) {
+  return typeof value === "string" && GUARD_MODES.includes(value);
+}
+
+/**
+ * How many soldiers `stored` Emerald Blocks fund (each costs `cost`).
+ * @param {number} stored
+ * @param {number} cost
+ * @returns {number}
+ */
+export function recruitableCount(stored, cost) {
+  if (!Number.isFinite(stored) || stored < 0) return 0;
+  if (!Number.isInteger(cost) || cost <= 0) return 0;
+  return Math.floor(stored / cost);
+}
+
+/**
+ * Emerald Blocks still needed before the next soldier (stored % cost).
+ * @param {number} stored
+ * @param {number} cost
+ * @returns {number}
+ */
+export function progressToNextSoldier(stored, cost) {
+  if (!Number.isFinite(stored) || stored < 0) return cost;
+  if (!Number.isInteger(cost) || cost <= 0) return 0;
+  return cost - (Math.floor(stored) % cost);
+}
+
+/**
+ * Clamp a configured spawn radius to sane bounds (default 4, 1..16).
+ * @param {unknown} value
+ * @param {number} [def]
+ * @param {number} [min]
+ * @param {number} [max]
+ * @returns {number}
+ */
+export function clampSpawnRadius(value, def = 4, min = 1, max = 16) {
+  if (value === undefined || value === null) return def;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return def;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+/**
+ * Parse the message part of `/scriptevent raajya:cs <command> [arg]`.
+ * @param {string | undefined} message
+ * @returns {{ command: string, arg: string, raw: string }}
+ */
+export function parseCommandMessage(message) {
+  const raw = String(message ?? "");
+  const parts = raw.trim().split(/\s+/).filter(Boolean);
+  const command = (parts[0] ?? "").toLowerCase();
+  const arg = parts.slice(1).join(" ");
+  return { command, arg, raw };
+}
