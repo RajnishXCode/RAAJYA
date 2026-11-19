@@ -2,8 +2,9 @@
  * RAAJYA — Script API entry point (@minecraft/server 2.x / "Scripting V2").
  *
  * Wiring only; the gameplay lives in `src/features/**`:
- *   - soldier-spawner: the station (real block-entity container) — deposits,
- *     status and recruitment are processed on container open/close.
+ *   - soldier-spawner: the station — deposits, status and recruitment are
+ *     processed on container open/close (dormant while the block entity's
+ *     container is unavailable; see soldier-spawner/station.ts).
  *   - commands: `/scriptevent raajya:cs stop|here|follow|defend|attack|patrol|
  *     status|radius <n>`, validated by Commander Stone ownership.
  *   - royal-guard: equipment, ownership and behavioural modes.

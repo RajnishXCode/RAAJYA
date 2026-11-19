@@ -1,0 +1,31 @@
+{
+  "format_version": "1.26.50",
+  "minecraft:crafting_items_catalog": {
+    "categories": [
+      {
+        "category_name": "items",
+        "groups": [
+          {
+            "group_identifier": {
+              "icon": "raajya:commander_stone",
+              "name": "raajya:itemGroup.name.commander"
+            },
+            "items": ["raajya:commander_stone"]
+          }
+        ]
+      },
+      {
+        "category_name": "construction",
+        "groups": [
+          {
+            "group_identifier": {
+              "icon": "raajya:royal_soldier_spawner",
+              "name": "raajya:itemGroup.name.stations"
+            },
+            "items": ["raajya:royal_soldier_spawner"]
+          }
+        ]
+      }
+    ]
+  }
+}

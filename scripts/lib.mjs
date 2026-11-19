@@ -364,7 +364,16 @@ const EXPECTED = {
   entityId: "raajya:royal_guard",
   emerald: "minecraft:emerald_block",
   diamond: "minecraft:diamond_block",
+  itemGroup: "raajya:itemGroup.name.commander",
+  blockGroup: "raajya:itemGroup.name.stations",
 };
+
+/**
+ * Creative `menu_category.group` values must be namespaced identifiers
+ * (required since item/block format 1.21.60; the engine rejects plain
+ * "itemGroup.name.*" strings with a parse error).
+ */
+const NAMESPACED_ID = /^\S+:\S+$/;
 
 export function validateIdentifiers() {
   const idsTs = readText(PATHS.ids);
@@ -379,6 +388,14 @@ export function validateIdentifiers() {
 
   const block = loadJson(path.join(PATHS.bp, "blocks", "royal_soldier_spawner.json"));
   assert(block["minecraft:block"].description.identifier === EXPECTED.blockId, "Block identifier mismatch");
+  // ROOT-CAUSE GUARD (v1.1.1): menu_category.group must be namespaced. The old
+  // non-namespaced value ("itemGroup.name.misc") failed the format-1.21.60+
+  // strict parse of the block description, which aborted registration of the
+  // whole block and cascaded into the blocks.json warning and both recipe
+  // errors.
+  const blockGroup = block["minecraft:block"].description.menu_category?.group;
+  assert(typeof blockGroup === "string" && NAMESPACED_ID.test(blockGroup),
+    `Block menu_category.group "${blockGroup}" must be a namespaced identifier (e.g. "${EXPECTED.blockGroup}")`);
   const blockComponents = block["minecraft:block"].components;
   // ROOT-CAUSE GUARD: the block must NOT reference any script-registered
   // custom component — that couples block loading to script health and was the
@@ -392,19 +409,20 @@ export function validateIdentifiers() {
     "Custom block must define both minecraft:geometry and minecraft:material_instances");
   assert(blockComponents["minecraft:material_instances"]["*"],
     "minecraft:material_instances must define the '*' default key");
-  // The station needs the real block-entity container (stable custom-block
-  // inventory API) plus per-instance dynamic properties.
+  // ROOT-CAUSE GUARD (v1.1.1): `minecraft:block_entity` (format 1.26.50+) is
+  // the stable API for per-instance dynamic properties, but its `container`
+  // parameter is still gated behind the "Upcoming Creator Features"
+  // experiment on the target engine (1.26.60 stable), and
+  // `container.show_ui_on_interaction` does not exist there at all (added in
+  // Preview 26.70.20). Either field made the whole block file fail to parse on
+  // a stock (no-experiments) world. Keep the definition on the stable schema;
+  // re-add the container only when targeting 1.26.70+, where it is released.
   const blockEntity = blockComponents["minecraft:block_entity"];
   assert(blockEntity, "Station block must declare minecraft:block_entity");
   assert(blockEntity.dynamic_properties === true,
     "minecraft:block_entity must enable dynamic_properties for per-instance station state");
-  assert(blockEntity.container && Number.isInteger(blockEntity.container.slot_count) &&
-    blockEntity.container.slot_count >= 1 && blockEntity.container.slot_count <= 54,
-    "minecraft:block_entity.container.slot_count must be 1..54");
-  assert(blockEntity.container.show_ui_on_interaction !== false,
-    "Station container must open its UI on interaction");
-  assert(typeof blockEntity.container.title === "string" && blockEntity.container.title.length > 0,
-    "Station container must have a title");
+  assert(!("container" in blockEntity),
+    "Block JSON must not declare minecraft:block_entity.container — experiment-gated on 1.26.60 (and show_ui_on_interaction does not exist there); it broke block registration (stable from 1.26.70)");
 
   // Block geometry reference must resolve to our own RP geometry file.
   const blockGeometryId = blockComponents["minecraft:geometry"];
@@ -486,6 +504,13 @@ export function validateIdentifiers() {
     assert(!key.includes(":"), `item_texture.json shortname "${key}" must not contain a colon`);
   }
   const itemDef = loadJson(path.join(PATHS.bp, "items", "commander_stone.json"));
+  // ROOT-CAUSE GUARD (v1.1.1): the item's menu_category.group must be
+  // namespaced — the old value failed the strict description parse, which
+  // aborted the whole item definition and produced the "Missing icon for
+  // data-driven item" error even though the icon wiring was correct.
+  const itemGroup = itemDef["minecraft:item"].description.menu_category?.group;
+  assert(typeof itemGroup === "string" && NAMESPACED_ID.test(itemGroup),
+    `Item menu_category.group "${itemGroup}" must be a namespaced identifier (e.g. "${EXPECTED.itemGroup}")`);
   const iconShortname = itemDef["minecraft:item"].components["minecraft:icon"]?.textures?.default;
   assert(iconShortname, "Commander Stone must define minecraft:icon textures.default");
   assert(!iconShortname.includes(":"), `Icon shortname "${iconShortname}" must not contain a colon`);
@@ -503,7 +528,69 @@ export function validateIdentifiers() {
     assert(lang.includes(key), `en_US.lang missing localization key ${key}`);
   }
 
-  pass("Custom identifiers, station container, guard AI/equipment and atlas shortnames all consistent");
+  pass("Custom identifiers, namespaced creative groups, station block entity, guard AI/equipment and atlas shortnames all consistent");
+}
+
+/**
+ * Validate BP/item_catalog/crafting_item_catalog.json — the file that defines
+ * RAAJYA's own namespaced creative groups and guarantees both custom entries
+ * are listed in (and therefore visible from) the Creative inventory.
+ */
+export function validateItemCatalog() {
+  const catalogPath = path.join(PATHS.bp, "item_catalog", "crafting_item_catalog.json");
+  assert(exists(catalogPath), "BP/item_catalog/crafting_item_catalog.json is required (defines our creative groups)");
+  const catalog = loadJson(catalogPath);
+  const categories = catalog["minecraft:crafting_items_catalog"]?.categories;
+  assert(Array.isArray(categories) && categories.length > 0, "Crafting catalog must define at least one category");
+
+  // Every group name must be namespaced, localized, and self-consistent.
+  const groups = new Map(); // group name -> { category, icon, items }
+  for (const category of categories) {
+    assert(["construction", "nature", "equipment", "items"].includes(category.category_name),
+      `Catalog category "${category.category_name}" must be one of construction/nature/equipment/items`);
+    assert(Array.isArray(category.groups) && category.groups.length > 0,
+      `Catalog category "${category.category_name}" must define at least one group`);
+    for (const group of category.groups) {
+      const id = group.group_identifier;
+      assert(id && typeof id.name === "string" && NAMESPACED_ID.test(id.name),
+        "Every catalog group_identifier.name must be a namespaced identifier (e.g. raajya:itemGroup.name.stations)");
+      assert(!groups.has(id.name), `Catalog group "${id.name}" is defined twice`);
+      groups.set(id.name, { category: category.category_name, icon: id.icon, items: group.items });
+    }
+  }
+
+  const lang = readText(path.join(PATHS.rp, "texts", "en_US.lang"));
+  for (const [name, group] of groups) {
+    assert(lang.includes(`${name}=`), `en_US.lang must localize the catalog group name "${name}"`);
+    assert(Array.isArray(group.items) && group.items.length > 0, `Catalog group "${name}" must list items`);
+    for (const item of group.items) {
+      assert(typeof item === "string", `Catalog group "${name}" items must be identifier strings`);
+    }
+  }
+
+  // The item and the block must each be listed in their own named group, with
+  // themselves as the group icon, so they are always visible in Creative.
+  const itemEntry = groups.get(EXPECTED.itemGroup);
+  assert(itemEntry, `Catalog must define the Commander Stone group "${EXPECTED.itemGroup}"`);
+  assert(itemEntry.category === "items", "Commander Stone group belongs to the \"items\" category");
+  assert(itemEntry.items.includes(EXPECTED.itemId), `Group "${EXPECTED.itemGroup}" must list ${EXPECTED.itemId}`);
+  assert(itemEntry.icon === EXPECTED.itemId, `Group "${EXPECTED.itemGroup}" icon must be ${EXPECTED.itemId}`);
+
+  const blockEntry = groups.get(EXPECTED.blockGroup);
+  assert(blockEntry, `Catalog must define the station group "${EXPECTED.blockGroup}"`);
+  assert(blockEntry.category === "construction", "Station group belongs to the \"construction\" category");
+  assert(blockEntry.items.includes(EXPECTED.blockId), `Group "${EXPECTED.blockGroup}" must list ${EXPECTED.blockId}`);
+  assert(blockEntry.icon === EXPECTED.blockId, `Group "${EXPECTED.blockGroup}" icon must be ${EXPECTED.blockId}`);
+
+  // The groups referenced by the definitions must be exactly the catalog ones.
+  const itemDef = loadJson(path.join(PATHS.bp, "items", "commander_stone.json"));
+  const blockDef = loadJson(path.join(PATHS.bp, "blocks", "royal_soldier_spawner.json"));
+  assert(itemDef["minecraft:item"].description.menu_category?.group === EXPECTED.itemGroup,
+    "Commander Stone menu_category.group must reference the catalog group");
+  assert(blockDef["minecraft:block"].description.menu_category?.group === EXPECTED.blockGroup,
+    "Spawner block menu_category.group must reference the catalog group");
+
+  pass("Crafting item catalog valid: both custom entries grouped, iconed and localized in Creative");
 }
 
 export function validateRecipe() {
@@ -678,6 +765,7 @@ export function validateEverything({ archives = true } = {}) {
   validateAllJson();
   validateManifests();
   validateIdentifiers();
+  validateItemCatalog();
   validateRecipe();
   validateAssets();
   validateSiteAndWorkflow();

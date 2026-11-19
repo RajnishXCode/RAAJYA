@@ -4,6 +4,7 @@ RAAJYA is a production-quality, modular Minecraft Bedrock Edition add-on built a
 
 > Scope: recruitment, ownership, equipment and soldier control. There is **no** Barracks, no vanilla-entity modification, no player-vs-player aggression (guards never target players).
 
+**v1.1.1 — registration fixes:** namespaced creative groups (fixes item/block parse failures, missing icon, recipe errors), experiment-free block schema, custom Creative groups via the item catalog. See [Root causes fixed in v1.1.1](#root-causes-fixed-in-v111) below.
 **v1.1.0 — in-game fixes & full gameplay:** real station container, enchanted equipment, functional AI, all seven commands. See [Root causes fixed in v1.1.0](#root-causes-fixed-in-v110) below.
 
 ---
@@ -18,10 +19,10 @@ RAAJYA is a production-quality, modular Minecraft Bedrock Edition add-on built a
 | manifest `format_version` | `2` | stable (v3 is preview — not used) |
 | TypeScript 5.9.3 · esbuild 0.28.2 · Node ≥ 18 | — | build tooling only |
 
-**No preview/beta APIs are used.** No world experiment toggles are required on the target engine. Block/entity/item JSON uses format versions verified against current official samples (`1.26.40` block, `1.26.20` entity, `1.21.80` item) and vanilla component shapes from `Mojang/bedrock-samples` at 1.26.x.
+**No preview/beta APIs are used.** No world experiment toggles are required on the target engine. Block/entity/item JSON uses format versions verified against the **engine's stable schemas** for 1.26.60 (`1.26.50` block, `1.26.20` entity, `1.21.80` item, `1.26.50` item catalog) — every field in every pack file parses on a stock (no-experiments) world.
 
-### Custom-block inventory — the actual stable API
-Researched and verified: there is **no** `minecraft:inventory` block component. The stable API for custom-block containers is the **`minecraft:block_entity`** component (with a nested `container`: `slot_count` 1–54, `title`, `show_ui_on_interaction`) — this is what RAAJYA's station uses. The script-side `VirtualContainer` custom-UI API is **preview-only** and is deliberately not used.
+### Custom-block inventory — status on 1.26.60 (honest note)
+Custom-block per-instance state uses the **`minecraft:block_entity`** component (block format **1.26.50+**), which is stable on 1.26.60 — RAAJYA uses it for the station's per-instance dynamic properties. Its **`container`** parameter, however, is still gated behind the *Upcoming Creator Features* experiment on 1.26.60 stable (Mojang releases it in **1.26.70**), and its `show_ui_on_interaction` field does not exist at 1.26.60 at all (added in Preview 26.70.20). v1.1.0 shipped those fields believing they were stable — on a stock world they made the whole block fail to register (the errors Minecraft reported). v1.1.1 therefore keeps the block definition on the stable schema only; the station's deposit-UI code paths remain in the scripts and re-activate unchanged when the container is re-added for engines ≥ 1.26.70 (where it is fully stable, no experiments).
 
 ### Verified stable Script APIs used
 `system.afterEvents.scriptEventReceive`, `world.afterEvents.blockContainerOpened` / `blockContainerClosed` (both carry the accessing player), `BlockInventoryComponent`, `BlockDynamicPropertiesComponent`, `EntityEquippableComponent.setEquipment`, `ItemEnchantableComponent.addEnchantments`, `EnchantmentTypes`, `EntityTameableComponent.tame/tamedToPlayer`, `Entity.triggerEvent`, `world.afterEvents.entityLoad`, `world.beforeEvents.playerBreakBlock` (+`system.run` deferral), `Dimension.getEntities/spawnEntity/getBlock`, `system.runInterval/runTimeout`, `player.sendMessage/onScreenDisplay.setActionBar`, `ItemStack/Entity/Block` dynamic properties, `Container` operations. Movement/AI is **data-driven** (vanilla behaviors) — there is no stable scripted pathfinding API, so no teleportation is used anywhere.
@@ -35,7 +36,8 @@ behavior_pack/
 ├── manifest.json                       # BP header, data + script modules, deps
 ├── items/commander_stone.json          # non-stackable, Creative, icon fix
 ├── blocks/royal_soldier_spawner.json   # station: geometry + material_instances
-│                                       #   + minecraft:block_entity container
+│                                       #   + minecraft:block_entity dynamic_properties
+├── item_catalog/crafting_item_catalog.json  # our namespaced Creative groups
 ├── entities/royal_guard.json           # full AI + mode component groups
 ├── recipes/royal_soldier_spawner.json  # 3x3 diamond blocks
 ├── loot_tables/blocks/…
@@ -80,9 +82,11 @@ site/index.html · .github/workflows/deploy.yml · MANUAL_TESTING.md
 
 ## 4. Royal Soldier Spawner — a real recruitment station
 
-`raajya:royal_soldier_spawner` is a placeable, reusable custom block with its own geometry/texture, craftable from **9 Diamond Blocks in the full 3×3 grid**, and `/give @s raajya:royal_soldier_spawner 1` gives the placeable station.
+`raajya:royal_soldier_spawner` is a placeable, reusable custom block with its own geometry/texture, craftable from **9 Diamond Blocks in the full 3×3 grid**, and `/give @s raajya:royal_soldier_spawner 1` gives the placeable station. It has per-instance **dynamic properties** via the stable `minecraft:block_entity` component (block format 1.26.50).
 
-**It has a real inventory**: `minecraft:block_entity` declares a 9-slot **container** titled "Royal Soldier Spawner" whose UI **opens on interaction** (the stable custom-block inventory API), plus per-instance dynamic properties.
+> **Station container UI on 1.26.60:** the deposit UI (Emerald Blocks in, soldiers out) requires the `container` field of `minecraft:block_entity`, which Mojang still gates behind the *Upcoming Creator Features* experiment on 1.26.60 stable (released, no experiments, from **1.26.70**). On a stock 1.26.60 world the station is therefore a fully functional, registered, craftable block whose **deposit UI is dormant** — the recruitment code paths are present and re-activate unchanged once the container returns (see the honest note in §1). Everything else — registration, Creative visibility, crafting, placement, texture, sounds, break/drops — works with zero experiments.
+
+The station's deposit/recruitment flow (active whenever the container UI is available — with *Upcoming Creator Features* on 1.26.60, or on any engine ≥ 1.26.70):
 
 - **Deposit**: open the station and put Emerald Blocks in (any amount, any stack split).
 - **Recruit**: when a player closes the station, every **5 stored Emerald Blocks recruit exactly one soldier** — spawned at a safe position within the configurable radius (default **4 blocks**), each consuming exactly 5 blocks from the station's container.
@@ -128,8 +132,9 @@ Ownership is stored as a dynamic property on each guard, copied **only from the 
 npm install
 npm run typecheck    # strict tsc --noEmit
 npm test             # 28 unit tests (economy, modes, commands, ID logic)
-npm run validate     # JSON, manifests/UUIDs, identifiers, station container,
-                     #   guard AI/equipment, recipe, PNG decode, workflow, archives
+npm run validate     # JSON, manifests/UUIDs, identifiers, creative groups +
+                     #   item catalog, station block entity, guard AI,
+                     #   recipe, PNG decode, workflow, archives
 npm run build        # steps 1–7 → dist/RAAJYA.mcaddon (+ versioned copy)
 npm run package      # steps 6–7 only
 npm run site         # GitHub Pages artifact
@@ -137,13 +142,24 @@ npm run textures     # regenerate original pixel-art PNGs
 npm run ci           # typecheck + test + validate + build
 ```
 
-Outputs in `dist/` (gitignored): `RAAJYA.mcaddon` (latest), `RAAJYA-v1.1.0.mcaddon`, `RAAJYA_BP.mcpack`, `RAAJYA_RP.mcpack`, `SHA256SUMS.txt`, `_site/`. The `.mcaddon` is a genuine ZIP of the two `.mcpack` files, each with `manifest.json` at the archive root and both packs linked by mutual manifest UUID dependencies.
+Outputs in `dist/` (gitignored): `RAAJYA.mcaddon` (latest), `RAAJYA-v1.1.1.mcaddon`, `RAAJYA_BP.mcpack`, `RAAJYA_RP.mcpack`, `SHA256SUMS.txt`, `_site/`. The `.mcaddon` is a genuine ZIP of the two `.mcpack` files, each with `manifest.json` at the archive root and both packs linked by mutual manifest UUID dependencies.
 
 ## 8–9. CI/CD, Pages, Git
 
-Unchanged from the initial version — see the workflow (`.github/workflows/deploy.yml`, official Pages actions, `push: main` + `workflow_dispatch`, `dist/_site` artifact) and §7–9 of the git history. Downloads: `https://<OWNER>.github.io/<REPO>/RAAJYA.mcaddon` (always latest) and `RAAJYA-v1.1.0.mcaddon`, plus the standalone `.mcpack` files and `SHA256SUMS.txt`. Nothing is pushed or remoted without approval.
+Unchanged from the initial version — see the workflow (`.github/workflows/deploy.yml`, official Pages actions, `push: main` + `workflow_dispatch`, `dist/_site` artifact) and §7–9 of the git history. Downloads: `https://<OWNER>.github.io/<REPO>/RAAJYA.mcaddon` (always latest) and `RAAJYA-v1.1.1.mcaddon`, plus the standalone `.mcpack` files and `SHA256SUMS.txt`. Nothing is pushed or remoted without approval.
 
 ---
+
+## Root causes fixed in v1.1.1
+
+The five content-log errors Minecraft reported on 1.26.60 stable all traced back to two root causes in the pack JSON:
+
+1. **Non-namespaced `menu_category.group` (`itemGroup.name.misc`)** in BOTH the Commander Stone item and the spawner block. Since format version **1.21.60** the group must be a namespaced identifier (engine schema pattern `^\S+:\S+$`), and `itemGroup.name.misc` is not even a real group in the current creative catalog. For the **item**, the strict description-parse failure aborted the whole definition — components (including `minecraft:icon`) were never applied, producing both *“Failed to parse field '-> description -> menu_category -> group'”* and *“Missing icon for data-driven item”* (the icon wiring itself was already correct). For the **block**, the same parse failure meant the block never entered the registry, producing *“The block named 'raajya:royal_soldier_spawner' in 'blocks.json' file does not exist in the registry”* and both recipe errors (*“The Item: … is missing or invalid, can't make the recipe”* / *“Recipe result malformed”*) — the recipe JSON itself was already correct and matches current vanilla recipe format.
+   **Fix:** RAAJYA now defines its own namespaced creative groups — `raajya:itemGroup.name.commander` (Items tab) and `raajya:itemGroup.name.stations` (Construction tab) — in `BP/item_catalog/crafting_item_catalog.json` (the official `minecraft:crafting_items_catalog` format), localizes both names in `en_US.lang`, and references them from both definitions. This also guarantees both entries are listed (and visible) in the Creative inventory, each as the icon of its own expandable group.
+2. **Experiment-gated/nonexistent `minecraft:block_entity` container fields** in the spawner block. `container.show_ui_on_interaction` **does not exist** on 1.26.60 stable (added in Preview 26.70.20) — an unknown field is a strict parse failure regardless of experiment settings — and the entire `container` parameter is still behind the *Upcoming Creator Features* experiment on 1.26.60 (Mojang releases it in 1.26.70). The file's `format_version` (`1.26.40`) also predated `minecraft:block_entity`'s stable release (block format **1.26.50**). Even after fixing the group, the block would have failed to register on any stock world.
+   **Fix:** the block now uses `format_version 1.26.50` and declares only the stable form — `minecraft:block_entity: { "dynamic_properties": true }` — keeping per-instance station state on the stable API. The deposit-UI container returns (no code changes needed) when the pack targets engines ≥ 1.26.70.
+
+New validation guards lock all of this in: namespaced groups on both definitions, catalog↔definition↔language cross-checks, `dynamic_properties` required, and any `minecraft:block_entity.container` reintroduction on the 1.26.60 target is rejected.
 
 ## Root causes fixed in v1.1.0
 
@@ -153,6 +169,7 @@ Unchanged from the initial version — see the workflow (`.github/workflows/depl
 
 ## Known limitations & honesty
 
+- **Station deposit UI is dormant on stock 1.26.60** — Mojang still gates the custom-block `container` behind the *Upcoming Creator Features* experiment there (released in 1.26.70). Registration, crafting, placement and visuals are unaffected; see §4.
 - **In-game verification is manual.** Everything checkable offline passes (strict TS, 28 unit tests, full validation suite, archive verification), but Minecraft cannot be launched here — see **[MANUAL_TESTING.md](MANUAL_TESTING.md)** for the required in-game checklist and what each automated check does and does not prove.
 - **Target engine = 1.26.60** (`@minecraft/server` 2.11.0 / `min_engine_version` [1,26,60]). Older builds may refuse the pack or not load the script module.
 - Guards recruited **through the spawn egg** (dev/testing only) are bare and stand at ease — equipment and modes are granted by the recruitment flow, not by the egg.

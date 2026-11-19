@@ -4,3 +4,5 @@ item.raajya:commander_stone.name=Commander Stone
 tile.raajya:royal_soldier_spawner.name=Royal Soldier Spawner
 entity.raajya:royal_guard.name=Royal Guard
 item.spawn_egg.entity.raajya:royal_guard.name=Spawn Royal Guard
+raajya:itemGroup.name.commander=RAAJYA Commander
+raajya:itemGroup.name.stations=RAAJYA Stations

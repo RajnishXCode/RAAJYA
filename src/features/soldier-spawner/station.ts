@@ -1,12 +1,17 @@
 /**
- * The Royal Soldier Spawner station: a real block-entity container.
+ * The Royal Soldier Spawner station.
  *
- * The block JSON declares `minecraft:block_entity` with a 9-slot `container`
- * (the stable custom-block inventory API) whose UI opens on interaction, plus
- * per-instance dynamic properties. Storage IS the container: players deposit
- * Emerald Blocks through the station UI, take them back out any time, and
- * every `EMERALD_COST` stored blocks funds exactly one soldier — processed
- * when a player closes the station (and summarised whenever it is opened).
+ * The block JSON declares `minecraft:block_entity` (format 1.26.50+) with
+ * per-instance dynamic properties — the stable, experiment-free API on
+ * Minecraft 1.26.60. The deposit UI additionally needs the block entity's
+ * `container` field, which Mojang still gates behind the "Upcoming Creator
+ * Features" experiment on 1.26.60 (released in 1.26.70); while the container
+ * is unavailable every helper below degrades gracefully (no container, no
+ * processing) and the block itself registers, crafts and renders normally.
+ * Storage IS the container: players deposit Emerald Blocks through the
+ * station UI, take them back out any time, and every `EMERALD_COST` stored
+ * blocks funds exactly one soldier — processed when a player closes the
+ * station (and summarised whenever it is opened).
  */
 
 import type {

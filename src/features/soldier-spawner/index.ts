@@ -1,11 +1,12 @@
 /**
  * Event-facing entry point for the Royal Soldier Spawner station.
  *
- * The station's container UI opens on interaction (`show_ui_on_interaction`),
- * so deposits/withdrawals happen through the real container. We hook the
- * container open/close events (both carry the accessing player) to show status
- * and to process recruitment. A short per-player cooldown on close-processing
- * guards against duplicated close events for the same interaction.
+ * When the station's container UI is available (see station.ts), deposits and
+ * withdrawals happen through the real container. We hook the container
+ * open/close events (both carry the accessing player) to show status and to
+ * process recruitment. A short per-player cooldown on close-processing guards
+ * against duplicated close events for the same interaction. Without a
+ * container the events simply never fire and the handlers stay dormant.
  */
 
 import { system, world } from "@minecraft/server";
