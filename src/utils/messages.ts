@@ -87,7 +87,7 @@ export function radiusSet(radius: number): string {
 export function unknownCommand(command: string): string {
   return (
     MESSAGE_PREFIX +
-    `§cUnknown command "§e${command}§c". Valid: stop, here, follow, defend, attack, patrol, status, radius <1-16>.`
+    `§cUnknown command "§e${command}§c". Valid: stop, here, follow, defend, attack, patrol, status, radius <1-16>, debug.`
   );
 }
 

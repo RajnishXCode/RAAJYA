@@ -4,6 +4,7 @@ RAAJYA is a production-quality, modular Minecraft Bedrock Edition add-on built a
 
 > Scope: recruitment, ownership, equipment and soldier control. There is **no** Barracks, no vanilla-entity modification, no player-vs-player aggression (guards never target players).
 
+**v1.1.4 — combat behavior parity:** the Royal Guard entity now mirrors vanilla's 1.26.50 wolf/zombie behavior files exactly (array-form `entity_types`, zombie-style target re-selection, dead `is_experimental` field removed), and a `debug` command reports what the script sees. See the Modes table in §5.
 **v1.1.3 — guards always spawn equipped:** gear is now data-driven (`minecraft:equipment`, the vanilla-zombie mechanism) and script equipment is a best-effort upgrade — recruitment can no longer roll back on equipment. See §5.
 **v1.1.2 — interactable station:** using the spawner now recruits soldiers directly from the player's inventory (stable `playerInteractWithBlock`) — no experiments, no container UI needed. See §4.
 **v1.1.1 — registration fixes:** namespaced creative groups (fixes item/block parse failures, missing icon, recipe errors), experiment-free block schema, custom Creative groups via the item catalog. See [Root causes fixed in v1.1.1](#root-causes-fixed-in-v111) below.
@@ -118,8 +119,11 @@ site/index.html · .github/workflows/deploy.yml · MANUAL_TESTING.md
 | `/scriptevent raajya:cs patrol` | Wander the area and engage hostiles met |
 | `/scriptevent raajya:cs status` | Owned soldier count grouped by current mode |
 | `/scriptevent raajya:cs radius <1-16>` | Configure station spawn radius (default 4) |
+| `/scriptevent raajya:cs debug` | Diagnostics: commander, owned guards, per-guard mode/owner/distance |
 
 Commands validate the issuing player's Commander Stone and affect **only guards carrying that Commander ID**; guards are re-tamed to the recruiting player so follow/defend use genuine vanilla pathfinding. Modes persist across world reloads (re-applied on `entityLoad`).
+
+> **Guards never attack players — by design.** Every targeting filter (`hurt_by_target`, `nearest_attackable_target`, `owner_hurt_*`) excludes the `player` and `royal_guard` families: guards only ever fight hostile **"monster"-family mobs** (zombies, skeletons, creepers…). PvP aggression is out of scope for RAAJYA.
 
 ## 6. Ownership & multiplayer
 
@@ -143,13 +147,24 @@ npm run textures     # regenerate original pixel-art PNGs
 npm run ci           # typecheck + test + validate + build
 ```
 
-Outputs in `dist/` (gitignored): `RAAJYA.mcaddon` (latest), `RAAJYA-v1.1.3.mcaddon`, `RAAJYA_BP.mcpack`, `RAAJYA_RP.mcpack`, `SHA256SUMS.txt`, `_site/`. The `.mcaddon` is a genuine ZIP of the two `.mcpack` files, each with `manifest.json` at the archive root and both packs linked by mutual manifest UUID dependencies.
+Outputs in `dist/` (gitignored): `RAAJYA.mcaddon` (latest), `RAAJYA-v1.1.4.mcaddon`, `RAAJYA_BP.mcpack`, `RAAJYA_RP.mcpack`, `SHA256SUMS.txt`, `_site/`. The `.mcaddon` is a genuine ZIP of the two `.mcpack` files, each with `manifest.json` at the archive root and both packs linked by mutual manifest UUID dependencies.
 
 ## 8–9. CI/CD, Pages, Git
 
-Unchanged from the initial version — see the workflow (`.github/workflows/deploy.yml`, official Pages actions, `push: main` + `workflow_dispatch`, `dist/_site` artifact) and §7–9 of the git history. Downloads: `https://<OWNER>.github.io/<REPO>/RAAJYA.mcaddon` (always latest) and `RAAJYA-v1.1.3.mcaddon`, plus the standalone `.mcpack` files and `SHA256SUMS.txt`. Nothing is pushed or remoted without approval.
+Unchanged from the initial version — see the workflow (`.github/workflows/deploy.yml`, official Pages actions, `push: main` + `workflow_dispatch`, `dist/_site` artifact) and §7–9 of the git history. Downloads: `https://<OWNER>.github.io/<REPO>/RAAJYA.mcaddon` (always latest) and `RAAJYA-v1.1.4.mcaddon`, plus the standalone `.mcpack` files and `SHA256SUMS.txt`. Nothing is pushed or remoted without approval.
 
 ---
+
+## Root causes fixed in v1.1.4
+
+Commands other than `follow` appeared dead and guards never fought hostile mobs. The combat behaviors were structurally close to vanilla but deviated in ways that silently neutralise them on a strict 1.26 parser:
+
+1. **`minecraft:behavior.hurt_by_target` used the object form of `entity_types`** (`"entity_types": { "filters": … }`). Every 1.26 vanilla file (zombie, wolf) uses the **array** form — the object form can fail to bind the retaliation target list, so guards never fought back against attackers.
+2. **The entity's `format_version` (`1.26.20`) predated the current vanilla behavior-schema matrix** (wolf/zombie ship at **1.26.50**; `melee_box_attack` changed at 1.26.40, `hurt_by_target`/`owner_hurt_*` at 1.26.30). The file now uses `format_version 1.26.50` — exact parity with the samples the engine itself ships.
+3. **A dead `is_experimental` description field** (used by no 1.26 vanilla entity) was removed from the description.
+4. **`nearest_attackable_target` lacked `reselect_targets: true` / `must_see_forget_duration`** (vanilla zombie values), which keeps target acquisition responsive on custom mobs.
+
+A new `/scriptevent raajya:cs debug` command reports commander, owned guards and each guard's mode/owner/distance, so any remaining issue can be localised in one test. Also clarified in docs: **guards never attack players by design** — they only fight "monster"-family mobs.
 
 ## Root causes fixed in v1.1.3
 

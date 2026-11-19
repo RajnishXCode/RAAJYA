@@ -1,11 +1,10 @@
 {
-  "format_version": "1.26.20",
+  "format_version": "1.26.50",
   "minecraft:entity": {
     "description": {
       "identifier": "raajya:royal_guard",
       "is_spawnable": true,
-      "is_summonable": true,
-      "is_experimental": false
+      "is_summonable": true
     },
     "components": {
       "minecraft:health": {
@@ -75,24 +74,26 @@
       },
       "minecraft:behavior.hurt_by_target": {
         "priority": 1,
-        "entity_types": {
-          "filters": {
-            "all_of": [
-              {
-                "test": "is_family",
-                "subject": "other",
-                "operator": "not",
-                "value": "player"
-              },
-              {
-                "test": "is_family",
-                "subject": "other",
-                "operator": "not",
-                "value": "royal_guard"
-              }
-            ]
+        "entity_types": [
+          {
+            "filters": {
+              "all_of": [
+                {
+                  "test": "is_family",
+                  "subject": "other",
+                  "operator": "not",
+                  "value": "player"
+                },
+                {
+                  "test": "is_family",
+                  "subject": "other",
+                  "operator": "not",
+                  "value": "royal_guard"
+                }
+              ]
+            }
           }
-        }
+        ]
       },
       "minecraft:behavior.melee_box_attack": {
         "priority": 4,
@@ -126,7 +127,9 @@
         },
         "minecraft:behavior.nearest_attackable_target": {
           "priority": 3,
+          "reselect_targets": true,
           "must_see": true,
+          "must_see_forget_duration": 17,
           "within_radius": 8,
           "entity_types": [
             {
@@ -143,7 +146,9 @@
       "raajya:combat_attack": {
         "minecraft:behavior.nearest_attackable_target": {
           "priority": 3,
+          "reselect_targets": true,
           "must_see": true,
+          "must_see_forget_duration": 17,
           "within_radius": 24,
           "entity_types": [
             {

@@ -433,8 +433,17 @@ export function validateIdentifiers() {
 
   const entity = loadJson(path.join(PATHS.bp, "entities", "royal_guard.json"));
   assert(entity["minecraft:entity"].description.identifier === EXPECTED.entityId, "BP entity identifier mismatch");
-  assert(entity["minecraft:entity"].description.is_experimental === false,
-    "Royal Guard must not be experimental");
+  // VANILLA-PARITY GUARDS (v1.1.4): the entity file mirrors the 1.26.50
+  // vanilla wolf/zombie samples exactly, because the previous file deviated in
+  // ways that silently broke combat behaviors (hurt_by_target entity_types as
+  // a single object instead of vanilla's array; a dead is_experimental field
+  // no 1.26 vanilla entity uses; an older format version).
+  assert(entity.format_version === "1.26.50",
+    "Royal Guard format_version must be 1.26.50 (parity with vanilla wolf/zombie samples)");
+  assert(!("is_experimental" in entity["minecraft:entity"].description),
+    "Royal Guard description must not declare is_experimental (dead field; absent from all 1.26 vanilla entities)");
+  assert(Array.isArray(entity["minecraft:entity"].components["minecraft:behavior.hurt_by_target"]?.entity_types),
+    "hurt_by_target entity_types must be an ARRAY (vanilla form) — the object form silently breaks retaliation");
   // ROOT-CAUSE GUARD (v1.1.3): custom entities on 1.26.60 do NOT expose script
   // equipment slots (EntityEquippableComponent exists on players/hardcoded
   // mobs only), so depending on it made every recruitment roll back. The base
@@ -473,6 +482,15 @@ export function validateIdentifiers() {
     "Component group raajya:combat_defend needs nearest_attackable_target");
   assert(groups["raajya:combat_attack"] && groups["raajya:combat_attack"]["minecraft:behavior.nearest_attackable_target"],
     "Component group raajya:combat_attack needs nearest_attackable_target");
+  // VANILLA-PARITY GUARD (v1.1.4): zombie-style target re-selection keeps
+  // custom-mob hunting responsive.
+  for (const groupName of ["raajya:combat_attack", "raajya:combat_defend"]) {
+    const targeting = groups[groupName]?.["minecraft:behavior.nearest_attackable_target"];
+    assert(targeting?.reselect_targets === true,
+      `${groupName} nearest_attackable_target must set reselect_targets: true (vanilla zombie parity)`);
+    assert(Array.isArray(targeting?.entity_types),
+      `${groupName} nearest_attackable_target entity_types must be an ARRAY (vanilla form)`);
+  }
   assert(groups["raajya:move_patrol"] && groups["raajya:move_patrol"]["minecraft:behavior.random_stroll"],
     "Component group raajya:move_patrol needs random_stroll");
   const targeting = JSON.stringify(groups);

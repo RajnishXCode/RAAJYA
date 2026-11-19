@@ -1,10 +1,10 @@
-# RAAJYA — Manual In-Game Test Checklist (v1.1.3)
+# RAAJYA — Manual In-Game Test Checklist (v1.1.4)
 
 > **Testing limitation (honest statement):** Minecraft Bedrock Edition **cannot be launched in the development environment** used to build this project. **No in-game test has been executed.** All offline validation that *can* run does pass (list at the bottom). This checklist must be performed by a human on Minecraft Bedrock **1.26.60+** after importing `dist/RAAJYA.mcaddon`. Enable the content log (Settings → Creator → *Enable Content Log*) to see any pack errors, and keep chat visible.
 
 ## Setup
-1. Import `RAAJYA.mcaddon`; create a **Creative** world with **cheats ON**; activate **both** RAAJYA packs (they are linked). If you are updating over an older import, the packs share their UUIDs — the **v1.1.3** version replaces the old one.
-2. No experiments/toggles are required on 1.26.60 for anything in this checklist — including station recruitment (interaction is script-driven since v1.1.2) and guard gear (data-driven since v1.1.3).
+1. Import `RAAJYA.mcaddon`; create a **Creative** world with **cheats ON**; activate **both** RAAJYA packs (they are linked). If you are updating over an older import, the packs share their UUIDs — the **v1.1.4** version replaces the old one. **Restart the world** after re-activating so the new entity definition and script load.
+2. No experiments/toggles are required on 1.26.60 for anything in this checklist — including station recruitment (interaction is script-driven since v1.1.2), guard gear (data-driven since v1.1.3) and combat behaviors (vanilla-parity since v1.1.4).
 3. Useful commands:
    ```
    /give @s raajya:commander_stone
@@ -61,6 +61,7 @@
 | 23 | `patrol` | Guards wander the area and engage hostiles they meet. |
 | 24 | `stop` | Guards stand fast everywhere. |
 | 25 | Run a command **without** a Commander Stone | Clear "you command no Royal Guards" feedback; nothing changes. |
+| 26 | `/scriptevent raajya:cs debug` | Prints the commander ID, owned-guard count and per guard: mode, owner name, distance — the exact state the script sees. Use this FIRST if any mode seems ignored. |
 
 ## E. Multiplayer / ownership
 | # | Test | Expected |
@@ -77,3 +78,5 @@
 
 ## Not provable offline (must be checked in-game)
 Container open/close event delivery (the dormant container path), equipment rendering on the model, pathfinding quality, animation playback, persistence across real world saves, multiplayer behaviour, and the interaction (`playerInteractWithBlock`) event delivery are engine behaviours — tests 0a–28 above cover them.
+
+> **Design note:** guards **never attack players, by design** — every targeting filter excludes the `player` family. Guards fight hostile **"monster"-family mobs only** (zombies, skeletons, …). If guards ignore a mob you summoned, check that it is a monster-family mob and run `/scriptevent raajya:cs debug` (v1.1.4+) to confirm the guards see your command.

@@ -21,7 +21,7 @@
 
 import { system, world } from "@minecraft/server";
 import type { Entity, Player, ScriptEventCommandMessageAfterEvent } from "@minecraft/server";
-import { COMMAND_EVENT_ID, HERE_ARRIVE_DISTANCE, GUARD_MONITOR_INTERVAL_TICKS } from "../../core/constants";
+import { COMMAND_EVENT_ID, HERE_ARRIVE_DISTANCE, GUARD_MONITOR_INTERVAL_TICKS, MESSAGE_PREFIX } from "../../core/constants";
 import type { GuardMode } from "../../core/types";
 import {
   commandAck,
@@ -91,6 +91,37 @@ function handleStatusCommand(player: Player): void {
   }
 }
 
+/**
+ * `/scriptevent raajya:cs debug` — remote diagnostics: reports exactly what
+ * the script sees (commander, owned guards, per-guard mode/owner/distance).
+ * Used to pinpoint where the command -> event -> behavior chain breaks.
+ */
+function handleDebugCommand(player: Player): void {
+  const commanderId = resolveCommander(player);
+  const lines = [
+    `§7script: running · event id "${COMMAND_EVENT_ID}" · engine ${player.dimension.id}`,
+    `§7commander: ${commanderId ?? "none — carry exactly one Commander Stone"}`,
+  ];
+  if (!commanderId) {
+    player.sendMessage(MESSAGE_PREFIX + lines.join("\n§r"));
+    return;
+  }
+  const guards = findOwnedGuards(player.dimension, commanderId);
+  lines.push(`§7owned guards in this dimension: ${guards.length}`);
+  for (const guard of guards) {
+    const owner = getGuardOwner(guard);
+    const dx = guard.location.x - player.location.x;
+    const dy = guard.location.y - player.location.y;
+    const dz = guard.location.z - player.location.z;
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    lines.push(
+      `§7 - guard ${String(guard.id).slice(0, 8)}: mode=§e${getGuardMode(guard)}§r` +
+        ` §7owner=${owner?.name ?? "?"} dist=${distance.toFixed(1)} valid=${guard.isValid}`,
+    );
+  }
+  player.sendMessage(MESSAGE_PREFIX + lines.join("\n§r"));
+}
+
 /** Dispatch one inbound `/scriptevent raajya:cs ...` command. */
 export function handleScriptEvent(event: ScriptEventCommandMessageAfterEvent): void {
   if (event.id !== COMMAND_EVENT_ID) {
@@ -108,6 +139,8 @@ export function handleScriptEvent(event: ScriptEventCommandMessageAfterEvent): v
       handleModeCommand(player, command as GuardMode);
     } else if (command === "status") {
       handleStatusCommand(player);
+    } else if (command === "debug") {
+      handleDebugCommand(player);
     } else if (command === "radius") {
       const radius = setSpawnRadius(Number(arg));
       player.sendMessage(radiusSet(radius));
