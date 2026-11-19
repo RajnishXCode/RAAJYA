@@ -1,10 +1,10 @@
-# RAAJYA — Manual In-Game Test Checklist (v1.1.2)
+# RAAJYA — Manual In-Game Test Checklist (v1.1.3)
 
 > **Testing limitation (honest statement):** Minecraft Bedrock Edition **cannot be launched in the development environment** used to build this project. **No in-game test has been executed.** All offline validation that *can* run does pass (list at the bottom). This checklist must be performed by a human on Minecraft Bedrock **1.26.60+** after importing `dist/RAAJYA.mcaddon`. Enable the content log (Settings → Creator → *Enable Content Log*) to see any pack errors, and keep chat visible.
 
 ## Setup
-1. Import `RAAJYA.mcaddon`; create a **Creative** world with **cheats ON**; activate **both** RAAJYA packs (they are linked). If you are updating over an older import, the packs share their UUIDs — the **v1.1.2** version replaces the old one.
-2. No experiments/toggles are required on 1.26.60 for anything in this checklist — including station recruitment (interaction is script-driven since v1.1.2).
+1. Import `RAAJYA.mcaddon`; create a **Creative** world with **cheats ON**; activate **both** RAAJYA packs (they are linked). If you are updating over an older import, the packs share their UUIDs — the **v1.1.3** version replaces the old one.
+2. No experiments/toggles are required on 1.26.60 for anything in this checklist — including station recruitment (interaction is script-driven since v1.1.2) and guard gear (data-driven since v1.1.3).
 3. Useful commands:
    ```
    /give @s raajya:commander_stone
@@ -12,7 +12,7 @@
    /give @s minecraft:diamond_block 9
    /give @s minecraft:emerald_block 64
    ```
-   (A "Spawn Royal Guard" egg also exists for inspecting the model — egg-spawned guards are bare by design.)
+   (A "Spawn Royal Guard" egg also exists for inspecting the model — egg-spawned guards carry the standard data-driven gear but have no commander, by design.)
 
 ## Zero — registration (the v1.1.1 fix; must be clean)
 | # | Test | Expected |
@@ -44,7 +44,7 @@
 ## C. Royal Guard (equipment & AI)
 | # | Test | Expected |
 |---|---|---|
-| 13 | Look at a recruited guard | **Netherite sword in hand, shield in offhand, full diamond armor** (visible), enchanted glints; walks with animated legs/arms, head tracks you. |
+| 13 | Look at a recruited guard | **Netherite sword in hand**, **royal plate uniform** (gold helmet with crest, shoulder plates, gold cuffs/boots) and — where the engine applies the gear table's armor set — **full diamond armor**; walks with animated legs/arms, head tracks you. |
 | 14 | Spawn a zombie/skeleton nearby (or `/summon zombie`) in **defend/attack** mode | Guards **pathfind to it and kill it** with melee swings — no teleporting. |
 | 15 | Attack a guard yourself | Guards do **not** retaliate against you (players are excluded from all targeting). |
 | 16 | Have guards fight near another guard | No friendly-fire retaliation loops (guards exclude the `royal_guard` family). |
@@ -72,7 +72,7 @@
 ## Automated validation that WAS run (all passing)
 - `npm run typecheck` — strict TypeScript (`tsc --noEmit`).
 - `npm test` — **28** unit tests: exact-5-across-stacks consumption, station economy (`recruitableCount`, remainder preservation, no-stone refusal), Commander ID generation/validation/ambiguity rules, mode validation, radius clamping, command parsing.
-- `npm run validate` — every JSON parsed; manifest UUIDs unique/valid + mutual BP↔RP link + pinned `@minecraft/server` 2.11.0; **namespaced creative groups** on both definitions and full **item-catalog** cross-checks (groups defined, iconed, localized, listing our entries); **stable station block entity** (`minecraft:block_entity` with `dynamic_properties`, and a guard *forbidding* the experiment-gated `container` on the 1.26.60 target); **root-cause guards** (no colon atlas shortnames, no script custom components in block JSON); guard AI checks (navigation/melee/persistent/tameable/follow_owner without teleport/mode events/player-excluded targeting); client entity (`enable_attachables`, vanilla humanoid animations); geometry bone set (`rightItem`/`leftItem`/`hat`…); 3×3 diamond recipe; all 14 required assets present and **5 PNGs decode**; workflow/site consistency; `.mcpack`/`.mcaddon` structure **with the shipped `scripts/main.js` verified to wire `playerInteractWithBlock` (station interaction) and `scriptEventReceive` (commands)**.
+- `npm run validate` — every JSON parsed; manifest UUIDs unique/valid + mutual BP↔RP link + pinned `@minecraft/server` 2.11.0; **namespaced creative groups** on both definitions and full **item-catalog** cross-checks (groups defined, iconed, localized, listing our entries); **stable station block entity** (`minecraft:block_entity` with `dynamic_properties`, and a guard *forbidding* the experiment-gated `container` on the 1.26.60 target); **root-cause guards** (no colon atlas shortnames, no script custom components in block JSON); guard AI checks (navigation/melee/persistent/tameable/follow_owner without teleport/mode events/player-excluded targeting); **data-driven guard gear** (`minecraft:equipment` table with sword + full diamond armor set — the root-cause guard for the v1.1.3 "no equippable component" rollback); client entity (`enable_attachables`, vanilla humanoid animations); geometry bone set (`rightItem`/`leftItem`/`hat`…); 3×3 diamond recipe; all 14 required assets present and **5 PNGs decode**; workflow/site consistency; `.mcpack`/`.mcaddon` structure **with the shipped `scripts/main.js` verified to wire `playerInteractWithBlock` (station interaction) and `scriptEventReceive` (commands)**.
 - `npm run build` — bundles a single ESM `scripts/main.js` (verified to contain equipment/commands/station logic), stages both packs (version injected), packages + verifies archives, writes SHA-256 checksums.
 
 ## Not provable offline (must be checked in-game)

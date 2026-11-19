@@ -47,6 +47,9 @@
       "minecraft:persistent": {},
       "minecraft:nameable": {},
       "minecraft:is_hidden_when_invisible": {},
+      "minecraft:equipment": {
+        "table": "loot_tables/entities/royal_guard_gear.json"
+      },
       "minecraft:pushable_by_entity": {},
       "minecraft:pushable_by_block": {},
       "minecraft:tameable": {

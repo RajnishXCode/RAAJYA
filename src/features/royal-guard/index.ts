@@ -1,9 +1,14 @@
 /**
  * Royal Guard feature: equipment, ownership persistence and behavioural modes.
  *
- * - Equipment is created and applied from SCRIPT (`EntityEquippableComponent`
- *   + `ItemEnchantableComponent`), so it lands in the real entity equipment
- *   slots and is visibly rendered (the client entity has `enable_attachables`).
+ * - Base gear is DATA-DRIVEN: the entity declares `minecraft:equipment` (the
+ *   same stable mechanism vanilla zombies use) so every guard spawns holding
+ *   the netherite sword, with the diamond armor set applied where the engine
+ *   supports it — rendered via the client entity's `enable_attachables`.
+ * - Script equipment (`EntityEquippableComponent` + `ItemEnchantableComponent`)
+ *   is a BEST-EFFORT upgrade to the exact enchanted loadout, applied only
+ *   where the engine exposes equipment slots on custom entities (not on
+ *   1.26.60) — it can never fail a recruitment.
  * - Ownership is stored as an entity dynamic property (survives world reloads)
  *   AND the guard is tamed to the recruiting player, which powers the vanilla
  *   `minecraft:behavior.follow_owner` pathfinding used by follow/defend/here —
@@ -109,26 +114,47 @@ function enchantStack(stack: ItemStack, enchantments: EnchantSpec[]): void {
 }
 
 /**
- * Apply the full enchanted loadout to a guard's real equipment slots.
- * Throws on failure so the recruitment transaction can roll the entity back.
+ * Best-effort enchanted loadout via the script `EntityEquippableComponent`.
+ *
+ * On Minecraft 1.26.60, custom entities do NOT expose script equipment slots
+ * (the component exists on player entities and hardcoded mobs only — the
+ * "Royal Guard has no equippable component" failure). The base gear is
+ * therefore data-driven: the entity's `minecraft:equipment` component gives
+ * every guard the netherite sword and (engine-permitting) the diamond armor
+ * set at spawn, exactly like vanilla zombie gear. This script pass upgrades
+ * to the exact enchanted loadout wherever the engine DOES expose slots, and
+ * degrades gracefully (returns false, never throws for a missing component)
+ * so recruitment can never fail because of equipment.
+ *
+ * @returns true when the full enchanted loadout was applied.
  */
-export function applyGuardEquipment(guard: Entity): void {
+export function applyGuardEquipment(guard: Entity): boolean {
   const equippable = guard.getComponent("minecraft:equippable") as
     | import("@minecraft/server").EntityEquippableComponent
     | undefined;
   if (!equippable) {
-    throw new Error("Royal Guard has no equippable component");
+    // Data-driven gear from minecraft:equipment remains; nothing to roll back.
+    return false;
   }
   for (const spec of GUARD_EQUIPMENT) {
     const stack = new ItemStack(spec.typeId, 1);
     if (spec.enchantments) {
-      enchantStack(stack, spec.enchantments);
+      try {
+        enchantStack(stack, spec.enchantments);
+      } catch {
+        return false; // Cosmetic only — never block recruitment on enchants.
+      }
     }
-    const ok = equippable.setEquipment(spec.slot, stack);
-    if (!ok) {
-      throw new Error(`Failed to set equipment slot ${spec.slot}`);
+    try {
+      const ok = equippable.setEquipment(spec.slot, stack);
+      if (!ok) {
+        return false; // Partial application is cosmetic and harmless.
+      }
+    } catch {
+      return false;
     }
   }
+  return true;
 }
 
 /**

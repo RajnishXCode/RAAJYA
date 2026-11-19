@@ -4,6 +4,7 @@ RAAJYA is a production-quality, modular Minecraft Bedrock Edition add-on built a
 
 > Scope: recruitment, ownership, equipment and soldier control. There is **no** Barracks, no vanilla-entity modification, no player-vs-player aggression (guards never target players).
 
+**v1.1.3 — guards always spawn equipped:** gear is now data-driven (`minecraft:equipment`, the vanilla-zombie mechanism) and script equipment is a best-effort upgrade — recruitment can no longer roll back on equipment. See §5.
 **v1.1.2 — interactable station:** using the spawner now recruits soldiers directly from the player's inventory (stable `playerInteractWithBlock`) — no experiments, no container UI needed. See §4.
 **v1.1.1 — registration fixes:** namespaced creative groups (fixes item/block parse failures, missing icon, recipe errors), experiment-free block schema, custom Creative groups via the item catalog. See [Root causes fixed in v1.1.1](#root-causes-fixed-in-v111) below.
 **v1.1.0 — in-game fixes & full gameplay:** real station container, enchanted equipment, functional AI, all seven commands. See [Root causes fixed in v1.1.0](#root-causes-fixed-in-v110) below.
@@ -26,7 +27,7 @@ RAAJYA is a production-quality, modular Minecraft Bedrock Edition add-on built a
 Custom-block per-instance state uses the **`minecraft:block_entity`** component (block format **1.26.50+**), which is stable on 1.26.60 — RAAJYA uses it for the station's per-instance dynamic properties. Its **`container`** parameter (the deposit UI), however, is still gated behind the *Upcoming Creator Features* experiment on 1.26.60 stable (Mojang releases it in **1.26.70**), and its `show_ui_on_interaction` field does not exist at 1.26.60 at all (added in Preview 26.70.20). v1.1.0 shipped those fields believing they were stable — on a stock world they made the whole block fail to register. **v1.1.2 therefore makes the station fully usable WITHOUT them**: interaction is handled in script (stable `playerInteractWithBlock`) and recruits directly from the player's inventory. The container-storage code paths remain in the scripts for a future 1.26.70-targeting release.
 
 ### Verified stable Script APIs used
-`system.afterEvents.scriptEventReceive`, `world.afterEvents.blockContainerOpened` / `blockContainerClosed` (both carry the accessing player), `BlockInventoryComponent`, `BlockDynamicPropertiesComponent`, `EntityEquippableComponent.setEquipment`, `ItemEnchantableComponent.addEnchantments`, `EnchantmentTypes`, `EntityTameableComponent.tame/tamedToPlayer`, `Entity.triggerEvent`, `world.afterEvents.entityLoad`, `world.beforeEvents.playerBreakBlock` (+`system.run` deferral), `Dimension.getEntities/spawnEntity/getBlock`, `system.runInterval/runTimeout`, `player.sendMessage/onScreenDisplay.setActionBar`, `ItemStack/Entity/Block` dynamic properties, `Container` operations. Movement/AI is **data-driven** (vanilla behaviors) — there is no stable scripted pathfinding API, so no teleportation is used anywhere.
+`system.afterEvents.scriptEventReceive`, `world.afterEvents.playerInteractWithBlock` (+`isFirstEvent`), `world.afterEvents.blockContainerOpened` / `blockContainerClosed` (dormant container path), `BlockDynamicPropertiesComponent`, `EntityEquippableComponent` (best-effort gear upgrade only), `ItemEnchantableComponent.addEnchantments`, `EnchantmentTypes`, `EntityTameableComponent.tame/tamedToPlayer`, `Entity.triggerEvent`, `world.afterEvents.entityLoad`, `world.beforeEvents.playerBreakBlock` (+`system.run` deferral), `Dimension.getEntities/spawnEntity/getBlock`, `system.runInterval/runTimeout`, `player.sendMessage/onScreenDisplay.setActionBar`, `ItemStack/Entity/Block` dynamic properties, `Container` operations. Movement/AI is **data-driven** (vanilla behaviors) — there is no stable scripted pathfinding API, so no teleportation is used anywhere.
 
 ---
 
@@ -95,13 +96,13 @@ site/index.html · .github/workflows/deploy.yml · MANUAL_TESTING.md
 
 > **Why not a container deposit UI?** Custom-block containers (`minecraft:block_entity` → `container`) are still behind the *Upcoming Creator Features* experiment on 1.26.60 stable (Mojang releases them in 1.26.70); shipping those fields is what broke block registration in v1.1.0. v1.1.2 instead handles the interaction in script and recruits from the player's inventory — the same tested economy (5 blocks → 1 soldier, exact consumption with rollback), no experiments, no dormant features. The container-storage code paths remain in the scripts for a future 1.26.70-targeting release.
 
-## 5. Royal Guard — fully equipped soldiers
+## 5. Royal Guard — geared soldiers
 
-`raajya:royal_guard` is a separate custom humanoid entity (never a modified villager). **Recruited** guards receive — applied from script to the real equipment slots, visibly rendered (`enable_attachables` + vanilla humanoid bone names so vanilla armor attachables bind):
+`raajya:royal_guard` is a separate custom humanoid entity (never a modified villager).
 
-- **Netherite sword** (Mainhand) — Sharpness III + Unbreaking III
-- **Shield** (Offhand)
-- **Diamond helmet/chestplate/leggings/boots** — Protection III + Unbreaking III
+**Gear is data-driven (stable, works on 1.26.60):** the entity declares **`minecraft:equipment`** with a gear table (`loot_tables/entities/royal_guard_gear.json`) — the same mechanism vanilla zombies use. Every guard spawns **holding a Netherite sword**, and the table's armor set (diamond helmet/chestplate/leggings/boots) is applied wherever the engine supports armor on custom entities. The sword and any applied armor render on the model (vanilla humanoid bone set + `enable_attachables`), and the guard's own skin is a full royal plate uniform — gold helmet with crest, shoulder plates, gold cuffs and boots — so a guard always reads as armored.
+
+**Best-effort script upgrade:** where the engine exposes equipment slots on custom entities to scripts (`EntityEquippableComponent` — not on 1.26.60), recruitment additionally applies the exact enchanted loadout (Sharpness III sword, shield, Protection III armor). This pass can never fail a recruitment; on 1.26.60 guards keep their data-driven gear.
 
 **Functional AI (data-driven, no fake teleportation):** `navigation.walk`, `movement.basic`, `jump.static`, `melee_box_attack`, `hurt_by_target` (excluding players and other guards), `look_at_player`, `random_look_around`, `float`; mode groups add `follow_owner` (real pathfinding; built-in teleport explicitly **disabled** via `post_teleport_distance: -1`), `owner_hurt_by_target` / `owner_hurt_target`, `nearest_attackable_target` (family `monster` only — **guards never attack players**), and `random_stroll` for patrol. Health 40, attack 10, knockback resistance, `minecraft:persistent` (no despawning), and vanilla humanoid animations (walk, look-at, holding, attack, bob).
 
@@ -142,13 +143,23 @@ npm run textures     # regenerate original pixel-art PNGs
 npm run ci           # typecheck + test + validate + build
 ```
 
-Outputs in `dist/` (gitignored): `RAAJYA.mcaddon` (latest), `RAAJYA-v1.1.2.mcaddon`, `RAAJYA_BP.mcpack`, `RAAJYA_RP.mcpack`, `SHA256SUMS.txt`, `_site/`. The `.mcaddon` is a genuine ZIP of the two `.mcpack` files, each with `manifest.json` at the archive root and both packs linked by mutual manifest UUID dependencies.
+Outputs in `dist/` (gitignored): `RAAJYA.mcaddon` (latest), `RAAJYA-v1.1.3.mcaddon`, `RAAJYA_BP.mcpack`, `RAAJYA_RP.mcpack`, `SHA256SUMS.txt`, `_site/`. The `.mcaddon` is a genuine ZIP of the two `.mcpack` files, each with `manifest.json` at the archive root and both packs linked by mutual manifest UUID dependencies.
 
 ## 8–9. CI/CD, Pages, Git
 
-Unchanged from the initial version — see the workflow (`.github/workflows/deploy.yml`, official Pages actions, `push: main` + `workflow_dispatch`, `dist/_site` artifact) and §7–9 of the git history. Downloads: `https://<OWNER>.github.io/<REPO>/RAAJYA.mcaddon` (always latest) and `RAAJYA-v1.1.2.mcaddon`, plus the standalone `.mcpack` files and `SHA256SUMS.txt`. Nothing is pushed or remoted without approval.
+Unchanged from the initial version — see the workflow (`.github/workflows/deploy.yml`, official Pages actions, `push: main` + `workflow_dispatch`, `dist/_site` artifact) and §7–9 of the git history. Downloads: `https://<OWNER>.github.io/<REPO>/RAAJYA.mcaddon` (always latest) and `RAAJYA-v1.1.3.mcaddon`, plus the standalone `.mcpack` files and `SHA256SUMS.txt`. Nothing is pushed or remoted without approval.
 
 ---
+
+## Root causes fixed in v1.1.3
+
+Recruitment triggered but always rolled back with *"Royal Guard has no equippable component"*: the script called `getComponent("minecraft:equippable")` — and on 1.26.60 that component **exists only on player entities and hardcoded mobs** (the official Script API docs state exactly this). Custom entities do not expose script equipment slots, so the "apply equipment or roll back the whole recruitment" design made every recruitment fail.
+
+**Fix:** the direction was inverted.
+1. **Base gear is now data-driven.** The Royal Guard entity declares `minecraft:equipment` with a gear table (`loot_tables/entities/royal_guard_gear.json`): Netherite sword in hand plus the full diamond armor set, structured like vanilla's own `zombie_equipment.json` / `armor_set_diamond.json`. This is the same stable spawn-gear mechanism vanilla zombies use — no experiments, no runtime-identifier hacks (which would have smuggled in hardcoded undead side effects).
+2. **Script equipment is a best-effort upgrade** (`applyGuardEquipment` now returns instead of throwing): wherever the engine does expose equipment slots on custom entities, recruits get the exact enchanted loadout; on 1.26.60 they keep the data-driven gear. Recruitment can never fail on equipment again.
+
+Validation now enforces the data-driven gear chain: `minecraft:equipment` on the entity, the gear table present, and all five gear items in it.
 
 ## Root causes fixed in v1.1.2
 
@@ -176,7 +187,7 @@ New validation guards lock all of this in: namespaced groups on both definitions
 
 - **In-game verification is manual.** Everything checkable offline passes (strict TS, 28 unit tests, full validation suite, archive verification), but Minecraft cannot be launched here — see **[MANUAL_TESTING.md](MANUAL_TESTING.md)** for the required in-game checklist and what each automated check does and does not prove.
 - **Target engine = 1.26.60** (`@minecraft/server` 2.11.0 / `min_engine_version` [1,26,60]). Older builds may refuse the pack or not load the script module.
-- Guards recruited **through the spawn egg** (dev/testing only) are bare and stand at ease — equipment and modes are granted by the recruitment flow, not by the egg.
+- Guards recruited **through the spawn egg** (dev/testing only) carry the standard data-driven gear (sword + armor set) but have no Commander and stand at ease — ownership, modes and the script-enchanted upgrade are granted by the recruitment flow, not the egg.
 - Recruitment consumes Emerald Blocks straight from the interacting player's inventory; there is no station storage to lose (a container-storage variant returns with a future 1.26.70-targeting build).
 - The station refuses to break while holding items (resources preserved) rather than risking engine drop behaviour.
 - Commander IDs are random 32-bit hex (collision astronomically unlikely, not cryptographic).

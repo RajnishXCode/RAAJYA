@@ -435,8 +435,24 @@ export function validateIdentifiers() {
   assert(entity["minecraft:entity"].description.identifier === EXPECTED.entityId, "BP entity identifier mismatch");
   assert(entity["minecraft:entity"].description.is_experimental === false,
     "Royal Guard must not be experimental");
-  // AI: real data-driven behaviors (mirrors vanilla 1.26 shapes).
+  // ROOT-CAUSE GUARD (v1.1.3): custom entities on 1.26.60 do NOT expose script
+  // equipment slots (EntityEquippableComponent exists on players/hardcoded
+  // mobs only), so depending on it made every recruitment roll back. The base
+  // gear must be data-driven via `minecraft:equipment` — the same stable
+  // mechanism vanilla zombies use (hand item + armor-set loot table).
   const entityComponents = entity["minecraft:entity"].components;
+  const equipment = entityComponents["minecraft:equipment"];
+  assert(equipment && typeof equipment.table === "string" && equipment.table.length > 0,
+    "Royal Guard must declare minecraft:equipment with a gear table (data-driven base loadout)");
+  const gearPath = path.join(PATHS.bp, equipment.table.replace(/^\/+/, ""));
+  assert(exists(gearPath), `Royal Guard gear table missing: ${equipment.table}`);
+  const gear = loadJson(gearPath);
+  const gearNames = JSON.stringify(gear);
+  for (const gearItem of ["minecraft:netherite_sword", "minecraft:diamond_helmet",
+    "minecraft:diamond_chestplate", "minecraft:diamond_leggings", "minecraft:diamond_boots"]) {
+    assert(gearNames.includes(gearItem), `Gear table ${equipment.table} must equip ${gearItem}`);
+  }
+  // AI: real data-driven behaviors (mirrors vanilla 1.26 shapes).
   assert(entityComponents["minecraft:navigation.walk"], "Royal Guard needs minecraft:navigation.walk");
   assert(entityComponents["minecraft:movement.basic"], "Royal Guard needs minecraft:movement.basic");
   assert(entityComponents["minecraft:behavior.melee_box_attack"], "Royal Guard needs melee_box_attack");
@@ -528,7 +544,7 @@ export function validateIdentifiers() {
     assert(lang.includes(key), `en_US.lang missing localization key ${key}`);
   }
 
-  pass("Custom identifiers, namespaced creative groups, station block entity, guard AI/equipment and atlas shortnames all consistent");
+  pass("Custom identifiers, namespaced creative groups, station block entity, guard gear table, guard AI/equipment and atlas shortnames all consistent");
 }
 
 /**
@@ -654,6 +670,7 @@ export function validateAssets() {
     "resource_pack/models/entity/royal_guard.geo.json",
     "resource_pack/entity/royal_guard.json",
     "resource_pack/render_controllers/royal_guard.json",
+    "behavior_pack/loot_tables/entities/royal_guard_gear.json",
     "resource_pack/textures/item_texture.json",
     "resource_pack/textures/terrain_texture.json",
     "resource_pack/blocks.json",

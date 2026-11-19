@@ -10,9 +10,10 @@
  * Ordering (per soldier) and failure guarantees:
  *   1. Read-only checks: station container, stored count, Commander ID,
  *      safe spawn position (within the configured radius).
- *   2. Mutating phase, atomic via rollback: spawn one guard -> apply the full
- *      enchanted loadout -> assign ownership + tame -> consume exactly
- *      EMERALD_COST Emerald Blocks FROM THE STATION. Any exception removes the
+ *   2. Mutating phase, atomic via rollback: spawn one guard -> hand over the
+ *      data-driven gear (declared on the entity itself) -> assign ownership +
+ *      tame -> consume exactly EMERALD_COST Emerald Blocks FROM THE STATION.
+ *      Any exception removes the
  *      guard and restores the container — no lost resources, no orphan
  *      soldiers, and the remaining stored blocks stay in the station.
  */
@@ -119,7 +120,9 @@ export function recruit(
         throw new Error("failed to persist Commander ID on the Royal Guard");
       }
 
-      // Full enchanted loadout (sword + shield + Protection IV-tier armor).
+      // Best-effort script loadout upgrade — the base gear (netherite sword
+      // + armor where supported) is already on the guard data-driven via
+      // `minecraft:equipment`; this can never fail the transaction.
       applyGuardEquipment(spawned);
 
       // Consume exactly EMERALD_COST Emerald Blocks from the STATION.
