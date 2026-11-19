@@ -731,6 +731,15 @@ export function validateArchives() {
   }
   const bpEntries = listZip(bpMcpack);
   assert(bpEntries.includes("scripts/main.js"), "BP .mcpack must contain scripts/main.js");
+  // The station's interaction handler is the pack's core behavior — verify
+  // the SHIPPED bundle actually wires it (guards against a stale/empty build).
+  const mainJs = readZipEntry(bpMcpack, "scripts/main.js");
+  for (const token of [
+    "playerInteractWithBlock", // station interaction -> inventory recruitment
+    "scriptEventReceive", // /scriptevent raajya:cs commands
+  ]) {
+    assert(mainJs.includes(token), `scripts/main.js must wire ${token}`);
+  }
   const rpEntries = listZip(rpMcpack);
   assert(rpEntries.some((e) => e.endsWith(".png")), "RP .mcpack must contain texture PNGs");
   pass("Both .mcpack archives valid (manifest at root, script + textures present)");

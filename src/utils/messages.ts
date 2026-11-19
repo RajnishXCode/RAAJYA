@@ -12,7 +12,7 @@ const FAILURE_MESSAGES: Record<RecruitmentFailure, string> = {
     "§cYour Commander Stones have different Commander IDs. Carry exactly one stone to avoid assigning a soldier to the wrong commander.",
   commander_id_unsupported:
     "§cCould not initialise the Commander Stone (it must be non-stackable). Check the pack's item definition.",
-  insufficient_emeralds: `§cThe station needs ${EMERALD_COST} stored Emerald Blocks per soldier.`,
+  insufficient_emeralds: `§cRecruiting needs ${EMERALD_COST} Emerald Blocks per soldier.`,
   no_safe_spawn: "§cThere is no safe, unoccupied space to recruit a soldier here. Clear some room around the station.",
   recruitment_error: "§cRecruitment failed unexpectedly. Nothing was consumed — please try again.",
 };
@@ -35,11 +35,31 @@ export function stationStatusText(stored: number, recruited: number, radius: num
   );
 }
 
+/**
+ * Status line for the interact (inventory) economy: reports the Emerald
+ * Blocks the interacting player carries rather than station storage.
+ */
+export function stationCarryText(carried: number, recruited: number, radius: number): string {
+  const next = carried % EMERALD_COST;
+  return (
+    `§6Royal Soldier Spawner§r — you carry §a${carried}§r Emerald Block${carried === 1 ? "" : "s"} ` +
+    `(§e${next}/${EMERALD_COST}§r to next soldier) · recruited here: §b${recruited}§r · spawn radius: §d${radius}§r`
+  );
+}
+
 export function stoneRequiredStation(stored: number): string {
   return (
     MESSAGE_PREFIX +
     `§cA Commander Stone in your inventory is required to recruit. §r${stored} Emerald Block${stored === 1 ? "" : "s"} ` +
     "remain safely stored in the station."
+  );
+}
+
+/** Interact-economy variant: nothing is stored, so report what is carried. */
+export function stoneRequiredInteract(carried: number): string {
+  return (
+    MESSAGE_PREFIX +
+    `§cA Commander Stone in your inventory is required to recruit. §rYou carry ${carried} Emerald Block${carried === 1 ? "" : "s"}.`
   );
 }
 

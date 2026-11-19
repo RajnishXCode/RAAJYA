@@ -1,12 +1,18 @@
 /**
  * Event-facing entry point for the Royal Soldier Spawner station.
  *
- * When the station's container UI is available (see station.ts), deposits and
- * withdrawals happen through the real container. We hook the container
- * open/close events (both carry the accessing player) to show status and to
- * process recruitment. A short per-player cooldown on close-processing guards
- * against duplicated close events for the same interaction. Without a
- * container the events simply never fire and the handlers stay dormant.
+ * Interacting (use) with the station triggers inventory-based recruitment:
+ * every `EMERALD_COST` Emerald Blocks the interacting player CARRIES funds
+ * exactly one soldier, consumed directly from the player's inventory by the
+ * rollback-safe recruit() transaction. This is the stable, experiment-free
+ * path on Minecraft 1.26.60 — custom-block containers (`minecraft:block_entity`
+ * → `container`) are still behind the "Upcoming Creator Features" experiment
+ * there, so the station block definition deliberately ships without one (see
+ * station.ts and the README's honest note).
+ *
+ * Only the initial button press counts (`isFirstEvent`); holding the use
+ * button does not re-trigger. A short per-player cooldown adds a second
+ * guard against duplicated events for the same interaction.
  */
 
 import { system, world } from "@minecraft/server";
@@ -14,9 +20,9 @@ import type { Block } from "@minecraft/server";
 import { BLOCKS } from "../../core/ids";
 import { COOLDOWN_TICKS } from "../../core/constants";
 import { logError } from "../../utils/log";
-import { isPlayer, processStationClose, showStationStatus } from "./station";
+import { isPlayer, processStationInteract } from "./station";
 
-/** Player IDs currently within the close-processing cooldown window. */
+/** Player IDs currently within the interact-processing cooldown window. */
 const cooldowns = new Set<string>();
 
 function isOnCooldown(playerId: string): boolean {
@@ -32,40 +38,25 @@ function isStation(block: Block): boolean {
   return block.typeId === BLOCKS.ROYAL_SOLDIER_SPAWNER;
 }
 
-/** Wire all station event handlers. Called once from main.ts. */
+/** Wire the station interaction handler. Called once from main.ts. */
 export function registerStationEvents(): void {
-  // Status whenever a player opens the station UI.
-  world.afterEvents.blockContainerOpened.subscribe((event) => {
+  world.afterEvents.playerInteractWithBlock.subscribe((event) => {
     try {
       if (!isStation(event.block)) {
         return;
       }
-      const player = event.openSource.entity;
-      if (player && isPlayer(player)) {
-        showStationStatus(player, event.block);
-      }
-    } catch (error) {
-      logError("Station open handler error", error);
-    }
-  });
-
-  // Process deposits/recruitment whenever a player closes the station UI.
-  world.afterEvents.blockContainerClosed.subscribe((event) => {
-    try {
-      if (!isStation(event.block)) {
+      // Ignore held-button repeats: only the initial press recruits.
+      if (!event.isFirstEvent) {
         return;
       }
-      const player = event.closeSource.entity;
-      if (!player || !isPlayer(player)) {
-        return;
-      }
-      if (isOnCooldown(player.id)) {
+      const player = event.player;
+      if (!isPlayer(player) || isOnCooldown(player.id)) {
         return;
       }
       startCooldown(player.id);
-      processStationClose(event.block, player);
+      processStationInteract(player, event.block);
     } catch (error) {
-      logError("Station close handler error", error);
+      logError("Station interact handler error", error);
     }
   });
 }

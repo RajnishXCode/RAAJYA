@@ -3,15 +3,18 @@
  *
  * The block JSON declares `minecraft:block_entity` (format 1.26.50+) with
  * per-instance dynamic properties — the stable, experiment-free API on
- * Minecraft 1.26.60. The deposit UI additionally needs the block entity's
- * `container` field, which Mojang still gates behind the "Upcoming Creator
- * Features" experiment on 1.26.60 (released in 1.26.70); while the container
- * is unavailable every helper below degrades gracefully (no container, no
- * processing) and the block itself registers, crafts and renders normally.
- * Storage IS the container: players deposit Emerald Blocks through the
- * station UI, take them back out any time, and every `EMERALD_COST` stored
- * blocks funds exactly one soldier — processed when a player closes the
- * station (and summarised whenever it is opened).
+ * Minecraft 1.26.60. Its optional `container` field (deposit UI) is still
+ * gated behind the "Upcoming Creator Features" experiment on 1.26.60
+ * (released in 1.26.70), so the block deliberately ships WITHOUT one: on a
+ * stock world that field made the whole block fail to register.
+ *
+ * Recruitment is therefore interaction-driven (`processStationInteract`):
+ * using the station consumes Emerald Blocks directly from the interacting
+ * player's inventory — every `EMERALD_COST` carried blocks fund exactly one
+ * soldier — via the same rollback-safe transaction that previously read the
+ * station storage. The container-storage helpers below remain for a future
+ * 1.26.70-targeting release (they simply report empty while no container
+ * exists) and preserve the break-guard behaviour.
  */
 
 import type {
@@ -24,13 +27,15 @@ import type {
 } from "@minecraft/server";
 import { BLOCKS, VANILLA } from "../../core/ids";
 import { EMERALD_COST, PROP_STATION_RECRUITED } from "../../core/constants";
-import { countEmeraldBlocks, ejectCommanderStones } from "./inventory";
+import { countEmeraldBlocks, ejectCommanderStones, getInventoryContainer } from "./inventory";
 import { recruit } from "./recruitment";
 import { getSpawnRadius } from "./spawn";
 import {
   failureMessage,
+  stationCarryText,
   stationStatusText,
   stoneEjected,
+  stoneRequiredInteract,
   stoneRequiredStation,
   successMessage,
 } from "../../utils/messages";
@@ -111,11 +116,69 @@ export function showStationStatus(player: Player, block: Block): void {
   }
 }
 
+/** Show the interact-economy status line (chat + action bar). */
+export function showInteractStatus(player: Player, block: Block, carried: number): void {
+  const text = stationCarryText(carried, getStationRecruited(block), getSpawnRadius());
+  player.sendMessage(text);
+  try {
+    player.onScreenDisplay.setActionBar(text);
+  } catch {
+    // The action bar is cosmetic; the chat message above already covers it.
+  }
+}
+
 /**
- * Process a station close: eject any Commander Stones the player may have
- * dropped into the UI, then recruit one soldier per EMERALD_COST stored
- * Emerald Blocks (if the closing player holds a valid Commander Stone).
- * On any failure the stored blocks remain safely in the station.
+ * Process a station interaction (use): every `EMERALD_COST` Emerald Blocks
+ * the interacting player CARRIES funds exactly one soldier, consumed
+ * directly from the player's inventory by the rollback-safe recruit()
+ * transaction (which also validates/initialises the Commander Stone's ID).
+ * With fewer than `EMERALD_COST` carried blocks nothing is consumed — only
+ * the status line is shown.
+ */
+export function processStationInteract(player: Player, block: Block): void {
+  if (!block.isValid) {
+    return; // The station was broken between the event and this handler.
+  }
+
+  const playerContainer = getInventoryContainer(player);
+  if (!playerContainer) {
+    player.sendMessage(failureMessage("no_inventory"));
+    return;
+  }
+
+  const carried = countEmeraldBlocks(playerContainer);
+  if (carried < EMERALD_COST) {
+    // Nothing consumed; just report what the station would do.
+    showInteractStatus(player, block, carried);
+    return;
+  }
+
+  const affordable = Math.floor(carried / EMERALD_COST);
+  const result = recruit(player, block, playerContainer, affordable);
+  if (result.ok) {
+    bumpStationRecruited(block, result.recruited);
+    player.sendMessage(successMessage(result.commanderId, result.recruited));
+  } else {
+    switch (result.reason) {
+      case "no_commander_stone":
+      case "multiple_commander_stones":
+      case "conflicting_commander_stones":
+      case "commander_id_unsupported":
+        player.sendMessage(stoneRequiredInteract(carried));
+        break;
+      default:
+        player.sendMessage(failureMessage(result.reason));
+    }
+  }
+  showInteractStatus(player, block, countEmeraldBlocks(playerContainer));
+}
+
+/**
+ * Process a station close (only reachable while a block-entity container
+ * exists — a future 1.26.70-targeting build): eject any Commander Stones the
+ * player may have dropped into the UI, then recruit one soldier per
+ * EMERALD_COST stored Emerald Blocks. On any failure the stored blocks
+ * remain safely in the station.
  */
 export function processStationClose(block: Block, player: Player): void {
   const container = getStationContainer(block);

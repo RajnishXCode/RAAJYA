@@ -4,6 +4,7 @@ RAAJYA is a production-quality, modular Minecraft Bedrock Edition add-on built a
 
 > Scope: recruitment, ownership, equipment and soldier control. There is **no** Barracks, no vanilla-entity modification, no player-vs-player aggression (guards never target players).
 
+**v1.1.2 — interactable station:** using the spawner now recruits soldiers directly from the player's inventory (stable `playerInteractWithBlock`) — no experiments, no container UI needed. See §4.
 **v1.1.1 — registration fixes:** namespaced creative groups (fixes item/block parse failures, missing icon, recipe errors), experiment-free block schema, custom Creative groups via the item catalog. See [Root causes fixed in v1.1.1](#root-causes-fixed-in-v111) below.
 **v1.1.0 — in-game fixes & full gameplay:** real station container, enchanted equipment, functional AI, all seven commands. See [Root causes fixed in v1.1.0](#root-causes-fixed-in-v110) below.
 
@@ -22,7 +23,7 @@ RAAJYA is a production-quality, modular Minecraft Bedrock Edition add-on built a
 **No preview/beta APIs are used.** No world experiment toggles are required on the target engine. Block/entity/item JSON uses format versions verified against the **engine's stable schemas** for 1.26.60 (`1.26.50` block, `1.26.20` entity, `1.21.80` item, `1.26.50` item catalog) — every field in every pack file parses on a stock (no-experiments) world.
 
 ### Custom-block inventory — status on 1.26.60 (honest note)
-Custom-block per-instance state uses the **`minecraft:block_entity`** component (block format **1.26.50+**), which is stable on 1.26.60 — RAAJYA uses it for the station's per-instance dynamic properties. Its **`container`** parameter, however, is still gated behind the *Upcoming Creator Features* experiment on 1.26.60 stable (Mojang releases it in **1.26.70**), and its `show_ui_on_interaction` field does not exist at 1.26.60 at all (added in Preview 26.70.20). v1.1.0 shipped those fields believing they were stable — on a stock world they made the whole block fail to register (the errors Minecraft reported). v1.1.1 therefore keeps the block definition on the stable schema only; the station's deposit-UI code paths remain in the scripts and re-activate unchanged when the container is re-added for engines ≥ 1.26.70 (where it is fully stable, no experiments).
+Custom-block per-instance state uses the **`minecraft:block_entity`** component (block format **1.26.50+**), which is stable on 1.26.60 — RAAJYA uses it for the station's per-instance dynamic properties. Its **`container`** parameter (the deposit UI), however, is still gated behind the *Upcoming Creator Features* experiment on 1.26.60 stable (Mojang releases it in **1.26.70**), and its `show_ui_on_interaction` field does not exist at 1.26.60 at all (added in Preview 26.70.20). v1.1.0 shipped those fields believing they were stable — on a stock world they made the whole block fail to register. **v1.1.2 therefore makes the station fully usable WITHOUT them**: interaction is handled in script (stable `playerInteractWithBlock`) and recruits directly from the player's inventory. The container-storage code paths remain in the scripts for a future 1.26.70-targeting release.
 
 ### Verified stable Script APIs used
 `system.afterEvents.scriptEventReceive`, `world.afterEvents.blockContainerOpened` / `blockContainerClosed` (both carry the accessing player), `BlockInventoryComponent`, `BlockDynamicPropertiesComponent`, `EntityEquippableComponent.setEquipment`, `ItemEnchantableComponent.addEnchantments`, `EnchantmentTypes`, `EntityTameableComponent.tame/tamedToPlayer`, `Entity.triggerEvent`, `world.afterEvents.entityLoad`, `world.beforeEvents.playerBreakBlock` (+`system.run` deferral), `Dimension.getEntities/spawnEntity/getBlock`, `system.runInterval/runTimeout`, `player.sendMessage/onScreenDisplay.setActionBar`, `ItemStack/Entity/Block` dynamic properties, `Container` operations. Movement/AI is **data-driven** (vanilla behaviors) — there is no stable scripted pathfinding API, so no teleportation is used anywhere.
@@ -57,8 +58,8 @@ src/
 ├── features/
 │   ├── commander-stone/index.ts        # ID read/init + write-back
 │   ├── soldier-spawner/
-│   │   ├── index.ts                    # container open/close wiring + cooldown
-│   │   ├── station.ts                  # storage, status, deposit processing
+│   │   ├── index.ts                    # station interact wiring + cooldown
+│   │   ├── station.ts                  # interact recruitment + container-path helpers
 │   │   ├── recruitment.ts              # per-soldier transaction (rollback)
 │   │   ├── inventory.ts                # container helpers + stone ejection
 │   │   └── spawn.ts                    # safe spawn (configurable radius)
@@ -78,22 +79,21 @@ site/index.html · .github/workflows/deploy.yml · MANUAL_TESTING.md
 
 - A unique persistent Commander ID (`RAAJYA-7F31A9C2`) is generated on first use, stored on the **ItemStack itself** and written back with `container.setItem` — it survives slot moves and world reloads and is never regenerated.
 - Multiple stones with different IDs (or uninitialized stones) are **refused with a clear message** — never silently guessed.
-- **Never deposited or consumed**: if a player drops a stone into the station UI it is automatically ejected back on close.
+- **Never consumed**: recruitment only ever reads the stone's Commander ID — the stone itself is never spent, moved or altered by the station.
 
 ## 4. Royal Soldier Spawner — a real recruitment station
 
-`raajya:royal_soldier_spawner` is a placeable, reusable custom block with its own geometry/texture, craftable from **9 Diamond Blocks in the full 3×3 grid**, and `/give @s raajya:royal_soldier_spawner 1` gives the placeable station. It has per-instance **dynamic properties** via the stable `minecraft:block_entity` component (block format 1.26.50).
+`raajya:royal_soldier_spawner` is a placeable, reusable custom block with its own geometry/texture, craftable from **9 Diamond Blocks in the full 3×3 grid**, and `/give @s raajya:royal_soldier_spawner 1` gives the placeable station. It keeps per-instance **dynamic properties** via the stable `minecraft:block_entity` component (block format 1.26.50).
 
-> **Station container UI on 1.26.60:** the deposit UI (Emerald Blocks in, soldiers out) requires the `container` field of `minecraft:block_entity`, which Mojang still gates behind the *Upcoming Creator Features* experiment on 1.26.60 stable (released, no experiments, from **1.26.70**). On a stock 1.26.60 world the station is therefore a fully functional, registered, craftable block whose **deposit UI is dormant** — the recruitment code paths are present and re-activate unchanged once the container returns (see the honest note in §1). Everything else — registration, Creative visibility, crafting, placement, texture, sounds, break/drops — works with zero experiments.
+**Interact (use) the station to recruit — stable on 1.26.60, zero experiments:**
 
-The station's deposit/recruitment flow (active whenever the container UI is available — with *Upcoming Creator Features* on 1.26.60, or on any engine ≥ 1.26.70):
-
-- **Deposit**: open the station and put Emerald Blocks in (any amount, any stack split).
-- **Recruit**: when a player closes the station, every **5 stored Emerald Blocks recruit exactly one soldier** — spawned at a safe position within the configurable radius (default **4 blocks**), each consuming exactly 5 blocks from the station's container.
-- **Requires** the closing player to hold a valid Commander Stone; without one the emeralds remain safely stored with a clear message.
-- **Status**: opening the station shows `stored / next-soldier progress / recruited here / spawn radius` (chat + action bar); the emeralds are visible in the UI itself.
-- **Preservation**: failed recruitment or no safe spawn leaves stored blocks untouched; breaking a station that still holds items is refused (`Withdraw all items…`); take items back out any time.
+- **Recruit**: use the station while carrying Emerald Blocks and a Commander Stone — every **5 carried Emerald Blocks recruit exactly one soldier**, consumed directly from your inventory by a rollback-safe transaction. Soldiers spawn at a safe position within the configurable radius (default **4 blocks**).
+- **Requires** a valid Commander Stone in the interacting player's inventory; without one nothing is consumed and the message says so.
+- **Status**: every interaction shows `carried Emerald Blocks / next-soldier progress / recruited here / spawn radius` (chat + action bar).
+- **Preservation**: failed recruitment or no safe spawn consumes nothing — resources are never lost.
 - **Radius config**: `/scriptevent raajya:cs radius <1-16>` (stored on the world, default 4).
+
+> **Why not a container deposit UI?** Custom-block containers (`minecraft:block_entity` → `container`) are still behind the *Upcoming Creator Features* experiment on 1.26.60 stable (Mojang releases them in 1.26.70); shipping those fields is what broke block registration in v1.1.0. v1.1.2 instead handles the interaction in script and recruits from the player's inventory — the same tested economy (5 blocks → 1 soldier, exact consumption with rollback), no experiments, no dormant features. The container-storage code paths remain in the scripts for a future 1.26.70-targeting release.
 
 ## 5. Royal Guard — fully equipped soldiers
 
@@ -142,13 +142,18 @@ npm run textures     # regenerate original pixel-art PNGs
 npm run ci           # typecheck + test + validate + build
 ```
 
-Outputs in `dist/` (gitignored): `RAAJYA.mcaddon` (latest), `RAAJYA-v1.1.1.mcaddon`, `RAAJYA_BP.mcpack`, `RAAJYA_RP.mcpack`, `SHA256SUMS.txt`, `_site/`. The `.mcaddon` is a genuine ZIP of the two `.mcpack` files, each with `manifest.json` at the archive root and both packs linked by mutual manifest UUID dependencies.
+Outputs in `dist/` (gitignored): `RAAJYA.mcaddon` (latest), `RAAJYA-v1.1.2.mcaddon`, `RAAJYA_BP.mcpack`, `RAAJYA_RP.mcpack`, `SHA256SUMS.txt`, `_site/`. The `.mcaddon` is a genuine ZIP of the two `.mcpack` files, each with `manifest.json` at the archive root and both packs linked by mutual manifest UUID dependencies.
 
 ## 8–9. CI/CD, Pages, Git
 
-Unchanged from the initial version — see the workflow (`.github/workflows/deploy.yml`, official Pages actions, `push: main` + `workflow_dispatch`, `dist/_site` artifact) and §7–9 of the git history. Downloads: `https://<OWNER>.github.io/<REPO>/RAAJYA.mcaddon` (always latest) and `RAAJYA-v1.1.1.mcaddon`, plus the standalone `.mcpack` files and `SHA256SUMS.txt`. Nothing is pushed or remoted without approval.
+Unchanged from the initial version — see the workflow (`.github/workflows/deploy.yml`, official Pages actions, `push: main` + `workflow_dispatch`, `dist/_site` artifact) and §7–9 of the git history. Downloads: `https://<OWNER>.github.io/<REPO>/RAAJYA.mcaddon` (always latest) and `RAAJYA-v1.1.2.mcaddon`, plus the standalone `.mcpack` files and `SHA256SUMS.txt`. Nothing is pushed or remoted without approval.
 
 ---
+
+## Root causes fixed in v1.1.2
+
+The spawner block registered and crafted (v1.1.1) but **interacting with it did nothing**: on a stock 1.26.60 world the block has no container UI, because custom-block containers (`minecraft:block_entity` → `container`) are still behind the *Upcoming Creator Features* experiment there (Mojang releases them in 1.26.70) — and v1.1.0/v1.1.1 had no interaction path without one.
+**Fix:** the station is now driven by the stable `world.afterEvents.playerInteractWithBlock` event. Using the station consumes Emerald Blocks **directly from the interacting player's inventory** — every 5 carried blocks fund one soldier via the same rollback-safe `recruit()` transaction (validated Commander Stone required, exact consumption, safe spawn search, per-instance recruited counter). No experiments, no container needed. Only the initial button press counts (`isFirstEvent`), with a per-player cooldown as a second guard. The build now also verifies the shipped `scripts/main.js` actually wires this handler.
 
 ## Root causes fixed in v1.1.1
 
@@ -169,11 +174,10 @@ New validation guards lock all of this in: namespaced groups on both definitions
 
 ## Known limitations & honesty
 
-- **Station deposit UI is dormant on stock 1.26.60** — Mojang still gates the custom-block `container` behind the *Upcoming Creator Features* experiment there (released in 1.26.70). Registration, crafting, placement and visuals are unaffected; see §4.
 - **In-game verification is manual.** Everything checkable offline passes (strict TS, 28 unit tests, full validation suite, archive verification), but Minecraft cannot be launched here — see **[MANUAL_TESTING.md](MANUAL_TESTING.md)** for the required in-game checklist and what each automated check does and does not prove.
 - **Target engine = 1.26.60** (`@minecraft/server` 2.11.0 / `min_engine_version` [1,26,60]). Older builds may refuse the pack or not load the script module.
 - Guards recruited **through the spawn egg** (dev/testing only) are bare and stand at ease — equipment and modes are granted by the recruitment flow, not by the egg.
-- Hopper-fed deposits do not auto-recruit (no player close event); any stone-holding player opening+closing the station processes them.
+- Recruitment consumes Emerald Blocks straight from the interacting player's inventory; there is no station storage to lose (a container-storage variant returns with a future 1.26.70-targeting build).
 - The station refuses to break while holding items (resources preserved) rather than risking engine drop behaviour.
 - Commander IDs are random 32-bit hex (collision astronomically unlikely, not cryptographic).
 
